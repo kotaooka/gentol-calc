@@ -25,15 +25,17 @@ const geHeads = (lows, max, first, maxOpen) => lows.map((l, i) => i === 0 && fir
 const glHeads = (his, min) => his.map((h, i) => i === 0 ? (min !== undefined ? `${min}〜${h}` : `${h}以下`) : `${his[i - 1]}超〜${h}`);
 
 // 寸法を読む
-function parse(raw) {
+function parse(raw, kind) {
   const s = String(raw).normalize("NFKC").replace(/\s+/g, "").trim();
   if (!s) return null;
   let m = s.match(/^([0-9]*\.?[0-9]+)(?:°|度)$/);
-  if (m) return { raw: s, type: "ang", val: +m[1], str: m[1] };
+  if (m) return { raw: s, type: "ang", val: +m[1], str: m[1], typed: true };
+  m = s.match(/^([0-9]*\.?[0-9]+)$/);
+  if (m && (kind === "ch" || kind === "ang")) return { raw: s, type: kind, pre: "", val: +m[1], str: m[1] };
   m = s.match(/^(?:\d+[-xX×])?(SR|Sφ|SΦ|φ|Φ|ø|Ø|⌀|R|C|□|t|T)?([0-9]*\.?[0-9]+)$/);
   if (!m) return { raw: s, type: "bad" };
   const pre = (m[1] || "").toUpperCase();
-  return { raw: s, type: (pre === "R" || pre === "C") ? "ch" : "lin", pre, val: +m[2], str: m[2] };
+  return { raw: s, type: (pre === "R" || pre === "C") ? "ch" : "lin", pre, val: +m[2], str: m[2], typed: !!pre };
 }
 const KIND = { lin: "長さ", ch: "面取り・かどの丸み", ang: "角度" };
 
@@ -67,10 +69,10 @@ function grid({ title, rowHeads, colHeads, vals, hr = -1, hc = -1, fmt = nat, q,
 const rules = items => `<ul class="rules">${items.map(t => `<li>${t}</li>`).join("")}</ul>`;
 
 // 条件の部品
-const segUI = (key, label, opts, cur, mono) => `<div class="field"><span class="nm">${label}</span><div class="seg${mono ? " mono" : ""}" role="group" aria-label="${label}">${opts.map(([v, t, title]) => `<button type="button" data-seg="${key}" data-v="${v}" aria-pressed="${String(v) === String(cur)}"${title ? ` title="${title}"` : ""}>${t}</button>`).join("")}</div></div>`;
-const selUI = (key, label, opts, cur) => `<div class="field"><label class="lb" for="c-${key}">${label}</label><select id="c-${key}" data-c="${key}">${opts.map(([v, t]) => `<option value="${v}"${String(v) === String(cur) ? " selected" : ""}>${t}</option>`).join("")}</select></div>`;
+const segUI = (key, label, opts, cur, mono) => `<div class="field" data-wrap="${key}"><span class="nm">${label}</span><div class="seg${mono ? " mono" : ""}" role="group" aria-label="${label}">${opts.map(([v, t, title]) => `<button type="button" data-seg="${key}" data-v="${v}" aria-pressed="${String(v) === String(cur)}"${title ? ` title="${title}"` : ""}>${t}</button>`).join("")}</div></div>`;
+const selUI = (key, label, opts, cur) => `<div class="field" data-wrap="${key}"><label class="lb" for="c-${key}">${label}</label><select id="c-${key}" data-c="${key}">${opts.map(([v, t]) => `<option value="${v}"${String(v) === String(cur) ? " selected" : ""}>${t}</option>`).join("")}</select></div>`;
 const txtUI = (key, label, cur, hint) => `<div class="field" data-wrap="${key}"><label class="lb" for="c-${key}">${label}</label><input type="text" inputmode="decimal" id="c-${key}" data-c="${key}" value="${esc(cur ?? "")}">${hint ? `<p class="hint">${hint}</p>` : ""}</div>`;
-const chkUI = (key, label, cur) => `<label class="chk"><input type="checkbox" id="c-${key}" data-c="${key}"${cur ? " checked" : ""}>${label}</label>`;
+const chkUI = (key, label, cur) => `<label class="chk" data-wrap="${key}"><input type="checkbox" id="c-${key}" data-c="${key}"${cur ? " checked" : ""}>${label}</label>`;
 const hint = t => `<p class="hint">${t}</p>`;
 
 // =====================================================================
@@ -104,10 +106,12 @@ function thkTable(T, L, nRows) {
   return grid({ title: T.title + "（±mm）", corner: "厚さ \\ 幅", rowHeads, colHeads: T.wHeads, vals: T.v.slice(0, nRows), hr: L ? L.r : -1, hc: L ? L.c : -1, q: T.q, allQ: T.allQ, src: T.src });
 }
 
+const matShort = i => { const n = DIN_MAT[i][0]; const g = n.match(/^グループ (\d+)/); return g ? "G" + g[1] : n.split(/ \/ |（|、/)[0] + (/ \/ |、/.test(n) ? " ほか" : ""); };
 const STDS = [
   // ---------------- 機械加工 ----------------
   { id: "mach", group: "普通公差", name: "機械加工", sub: "JIS B 0405 / B 0419",
-    def: { lin: "m", geo: "K", side: "" },
+    def: { lin: "m", geo: "K", side: "" }, stripKeys: ["lin"],
+    brief: c => `${c.lin} 級・幾何 ${c.geo}`,
     ui: c => segUI("lin", "JIS B 0405 の公差等級", LC.map(x => [x, x, LCN[x]]), c.lin, true) + segUI("geo", "JIS B 0419 の公差等級", ["H", "K", "L"].map(x => [x, x]), c.geo, true) +
       txtUI("side", "角度の短い方の辺の長さ [mm]", c.side, "角度の普通公差は、角度をはさむ短い方の辺の長さで決まります。"),
     show: (p) => ({ side: p && p.type === "ang" }),
@@ -157,7 +161,8 @@ const STDS = [
 
   // ---------------- 樹脂成形品 ----------------
   { id: "din", group: "普通公差", name: "樹脂成形品", sub: "DIN 16901 一般公差",
-    def: { mat: 0, ab: "B", thick: false },
+    def: { mat: 0, ab: "B", thick: false }, stripKeys: [],
+    brief: c => `${matShort(c.mat)}・${c.ab}${c.thick ? "・厚肉" : ""}`,
     ui: c => selUI("mat", "材料（公差グループ）", DIN_MAT.map(([n, g], i) => [i, `${n}（${g}）`]), c.mat) +
       segUI("ab", "寸法の種類", [["B", "B：型で決まる"], ["A", "A：型をまたぐ"]], c.ab) +
       hint("B は 1 つの型部品の中で決まる寸法。A は肉厚・底厚、スライドや突き出しなど型の可動部で決まる寸法で、B より 0.10 mm 広くなります。") +
@@ -186,7 +191,8 @@ const STDS = [
 
   // ---------------- 鋳造品 ----------------
   { id: "cast", group: "普通公差", name: "鋳造品", sub: "JIS B 0403（ISO 8062）",
-    def: { ct: 9, wall: false },
+    def: { ct: 9, wall: false }, stripKeys: [],
+    brief: c => `CT${c.ct}${c.wall ? "・肉厚" : ""}`,
     ui: c => selUI("ct", "鋳造公差等級（CT）", Array.from({ length: 16 }, (_, i) => [i + 1, "CT" + (i + 1)]), c.ct) +
       chkUI("wall", "肉厚の寸法（指定した等級より 1 つ粗い等級を使う）", c.wall) +
       hint("表の値は公差の全幅です。特に指示がなければ、呼び寸法の上下に半分ずつ振り分けます。等級の目安は早見表の下にあります。"),
@@ -215,7 +221,8 @@ const STDS = [
 
   // ---------------- ゴム製品 ----------------
   { id: "rub", group: "普通公差", name: "ゴム製品", sub: "ISO 3302-1",
-    def: { mode: "M", cls: "M2", fc: "F" },
+    def: { mode: "M", cls: "M2", fc: "F" }, stripKeys: ["cls"],
+    brief: c => `${{ M: "成形品", E: "押出断面", L: "切断長さ" }[c.mode]}・${rubKey(c).replace(/([FC])$/, " $1")}`,
     ui: c => segUI("mode", "製品", [["M", "成形品"], ["E", "押出（断面）"], ["L", "押出（切断長さ）"]], c.mode) +
       segUI("cls", "等級", RUB_CLS[c.mode].map(x => [x, x]), c.cls, true) +
       (c.mode === "M" && c.cls !== "M4" ? segUI("fc", "寸法の種類", [["F", "F：固定寸法"], ["C", "C：型締め寸法"]], c.fc) +
@@ -241,8 +248,9 @@ const STDS = [
     } },
 
   // ---------------- 冷間圧延鋼板 ----------------
-  { id: "g3141", group: "板厚・肉厚", name: "冷間圧延鋼板", sub: "JIS G 3141（SPCC など）",
-    def: { tbl: "A", w: "1000" },
+  { id: "g3141", group: "板厚・肉厚", name: "冷延鋼板", sub: "JIS G 3141（SPCC など）",
+    def: { tbl: "A", w: "1000" }, stripKeys: ["tbl"], thick: true,
+    brief: c => `表 ${c.tbl}・幅 ${c.w || "?"}`,
     ui: c => segUI("tbl", "表", [["A", "表15 A（圧延幅 600 以上）"], ["B", "表16 B（圧延幅 600 未満）"]], c.tbl) + txtUI("w", "幅 [mm]", c.w) +
       hint("厚さは幅方向の端から 15 mm 以上内側の任意の点で測ります。"),
     solve(p, c) {
@@ -256,8 +264,9 @@ const STDS = [
     tables: (p, c, R) => thkTable(c.tbl === "A" ? G3141A : G3141B, R.L) },
 
   // ---------------- 冷間圧延ステンレス鋼板 ----------------
-  { id: "g4305", group: "板厚・肉厚", name: "冷間圧延ステンレス鋼板", sub: "JIS G 4305",
-    def: { form: "plate", grade: "std", w: "1000" },
+  { id: "g4305", group: "板厚・肉厚", name: "ステンレス鋼板", sub: "JIS G 4305 冷間圧延",
+    def: { form: "plate", grade: "std", w: "1000" }, stripKeys: ["grade"], thick: true,
+    brief: c => `${c.form === "strip" ? "帯" : "板"}・${c.grade === "ET" ? "ET" : "標準"}・幅 ${c.w || "?"}`,
     ui: c => segUI("form", "形状", [["plate", "板"], ["strip", "帯"]], c.form) + segUI("grade", "許容差", [["std", "標準"], ["ET", "記号 ET（注文者が指定）"]], c.grade) + txtUI("w", "幅 [mm]", c.w) +
       hint("板は端から 15 mm 以上内側。帯は耳付きで幅 50 以上なら 25 mm 以上内側、切断縁で幅 30 以上なら 15 mm 以上内側、それより狭いものは幅の中央で測ります（2015年版 9.3.1）。記号 ST の表は値が見つからず載せていません。"),
     solve(p, c) {
@@ -273,8 +282,9 @@ const STDS = [
     tables(p, c, R) { const T = c.grade === "ET" ? G4305ET : G4305STD; return thkTable(T, R.L, T === G4305STD && c.form === "strip" ? 14 : 0); } },
 
   // ---------------- アルミニウム板 ----------------
-  { id: "h4000", group: "板厚・肉厚", name: "アルミニウム板", sub: "JIS H 4000",
-    def: { roll: "c", grp: "1", w: "1000" },
+  { id: "h4000", group: "板厚・肉厚", name: "アルミ板", sub: "JIS H 4000",
+    def: { roll: "c", grp: "1", w: "1000" }, stripKeys: ["grp"], thick: true,
+    brief: c => `${c.roll === "c" ? "冷間" : "熱間"}・その${c.grp}・幅 ${c.w || "?"}`,
     ui: c => segUI("roll", "圧延", [["c", "冷間圧延材"], ["h", "熱間圧延材"]], c.roll) +
       selUI("grp", "合金の区分", [["1", "その1（1000系・3003・5005 など）"], ["2", "その2（5052・6061・7075 など）"]], c.grp) + txtUI("w", "幅 [mm]", c.w) +
       hint(`合金の区分（1999年版）　その1：${H4000_G[1]}　／　その2：${H4000_G[2]}`),
@@ -291,8 +301,9 @@ const STDS = [
     tables(p, c, R) { const T = h4000T(c); return T ? thkTable(T, R.L) : ""; } },
 
   // ---------------- アルミニウム押出形材 ----------------
-  { id: "h4100", group: "板厚・肉厚", name: "アルミニウム押出形材", sub: "JIS H 4100 肉厚",
-    def: { grp: "1", grade: "n", d: "120", part: "solid" },
+  { id: "h4100", group: "板厚・肉厚", name: "アルミ押出形材", sub: "JIS H 4100 肉厚",
+    def: { grp: "1", grade: "n", d: "120", part: "solid" }, stripKeys: ["grade", "grp"], thick: true,
+    brief: c => `${c.grade === "s" ? "特殊級" : "普通級"}・G${c.grp}・外接円 ${c.d || "?"}${c.part === "hollow" ? "・中空" : ""}`,
     ui: c => selUI("grp", "合金グループ", [["1", "グループ1（6063・6061・5052 など）"], ["2", "グループ2（5083・2017・7075 など）"]], c.grp) +
       segUI("grade", "等級", [["n", "普通級"], ["s", "特殊級"]], c.grade) + txtUI("d", "外接円の直径 [mm]", c.d) +
       segUI("part", "肉厚の部位", [["solid", "中実部（金属部）"], ["hollow", "中空部を囲む肉厚"]], c.part) +
@@ -337,8 +348,8 @@ const S = id => STDS.find(s => s.id === id);
 // 状態（端末内に保存）
 // =====================================================================
 const KEY = "gentol-calc-v2";
-const st = { dim: "25", std: "mach", c: {} };
-try { const s = JSON.parse(localStorage.getItem(KEY) || "{}"); if (typeof s.dim === "string") st.dim = s.dim; if (S(s.std)) st.std = s.std; if (s.c) st.c = s.c; } catch (e) { /* 保存できない環境 */ }
+const st = { dim: "25", kind: "lin", std: "mach", c: {} };
+try { const s = JSON.parse(localStorage.getItem(KEY) || "{}"); if (typeof s.dim === "string") st.dim = s.dim; if (KIND[s.kind]) st.kind = s.kind; if (S(s.std)) st.std = s.std; if (s.c) st.c = s.c; } catch (e) { /* 保存できない環境 */ }
 for (const s of STDS) st.c[s.id] = Object.assign({}, s.def, st.c[s.id] || {});
 if (!RUB_CLS[st.c.rub.mode] || !RUB_CLS[st.c.rub.mode].includes(st.c.rub.cls)) Object.assign(st.c.rub, S("rub").def);
 if (!DIN_MAT[st.c.din.mat]) st.c.din.mat = 0;
@@ -348,55 +359,71 @@ const save = () => { try { localStorage.setItem(KEY, JSON.stringify(st)); } catc
 // 描画
 // =====================================================================
 let last = null; // 直近の結果（コピー用）
+const mq = q => !!(window.matchMedia && window.matchMedia(q).matches);
+const narrow = () => mq("(max-width: 899px)");
+const reduce = () => mq("(prefers-reduced-motion: reduce)");
 
 function renderPick(p) {
   const groups = [...new Set(STDS.map(s => s.group))];
   $("#pick").innerHTML = groups.map(g => `<div class="field"><span class="nm">${g}</span><div class="pick">${STDS.filter(s => s.group === g).map(s => {
-    const R = p ? s.solve(p, st.c[s.id]) : null;
-    const v = !p ? `<span class="pv na">寸法を入れる</span>` : R.ok ? `<span class="pv">${R.tolStr}${R.warn ? '<span class="flag" title="照合が足りない値">△</span>' : ""}</span>` : `<span class="pv na">${esc(R.short)}</span>`;
-    return `<button type="button" data-std="${s.id}" aria-pressed="${s.id === st.std}"><span class="pn">${s.name}</span>${v}<span class="ps">${s.sub}</span></button>`;
+    const c = st.c[s.id], R = p ? s.solve(p, c) : null;
+    const v = !p ? `<span class="pv na">—</span>` : R.ok ? `<span class="pv">${R.tolStr}${R.warn ? '<span class="flag" title="照合が足りない値">△</span>' : ""}</span>` : `<span class="pv na">${esc(R.short)}</span>`;
+    const off = p && !R.ok;
+    return `<button type="button" data-std="${s.id}" aria-pressed="${s.id === st.std}" class="${off ? "off" : ""}"><span class="pn">${s.name}</span>${v}<span class="ps">${esc(s.brief(c))}</span></button>`;
   }).join("")}</div></div>`).join("");
 }
 
 function renderConds() {
   const s = S(st.std);
-  $("#conds").innerHTML = `<h3>条件</h3>` + s.ui(st.c[s.id]);
+  $("#conds").innerHTML = s.ui(st.c[s.id]);
 }
 
 function renderResult(p) {
   const s = S(st.std), c = st.c[s.id];
-  if (s.show) { const sh = s.show(p); for (const [k, v] of Object.entries(sh)) { const w = document.querySelector(`[data-wrap="${k}"]`); if (w) w.hidden = !v; } }
-  $("#resTitle").textContent = `結果：${s.name}（${s.sub}）`;
-  if (!p) { $("#result").innerHTML = `<p class="hint">上の欄に寸法を入れてください。</p>`; $("#tables").innerHTML = s.tables(null, c, {}); last = null; return; }
-  const R = s.solve(p, c);
+  $("#resTitle").textContent = `結果：${s.name}`;
+  $("#resSub").textContent = s.sub;
+  let R = p ? s.solve(p, c) : null;
+  // 条件の欄のうち、等級の切り替えボタンで代わるものと、今は使わないものを隠す
+  const hide = new Set(R && R.strip && R.strip.length ? (s.stripKeys || []) : []);
+  if (s.show) for (const [k, v] of Object.entries(s.show(p))) if (!v) hide.add(k);
+  $$("#conds [data-wrap]").forEach(w => w.hidden = hide.has(w.dataset.wrap));
+  $("#condsHead").hidden = !$$("#conds [data-wrap]").some(w => !w.hidden);
+  if (!p) {
+    $("#resTop").innerHTML = `<p class="hint">上の欄に寸法を入れてください。</p>`; $("#resBottom").innerHTML = "";
+    $("#tables").innerHTML = s.tables(null, c, {}); last = null; return;
+  }
   const dimStr = p.type === "ang" ? dms(p.val) : p.type === "bad" ? esc(p.raw) : esc((p.pre || "") + fx(p.val, decOf(p.str)));
   let h = "";
   if (R.ok) h += `<div class="hero"><span class="big">${dimStr}<small>${R.tolStr}</small></span><span class="lim">${R.lo} 〜 ${R.hi}</span>${R.sub2 ? `<span class="sub2">${R.sub2}</span>` : ""}</div>`;
   else h += `<div class="hero"><span class="big">${dimStr}</span></div><div class="msg warn"><span aria-hidden="true">! </span>${esc(R.note)}</div>`;
   if (R.desig) h += `<div class="desig">${R.desig}</div>`;
   if (R.ok && R.warn) h += `<div class="msg warn"><span aria-hidden="true">△ </span>${esc(R.warn)} 図面や受入判定に使う前に規格票で確かめてください。</div>`;
-  if (R.strip && R.strip.length) h += `<h3>ほかの等級・区分なら</h3><div class="strip">${R.strip.map((x, i) => `<button type="button" data-strip="${i}" aria-pressed="${!!x.on}"><b>${x.label}</b>${x.val}</button>`).join("")}</div>`;
-  if (R.ok) h += `<div class="row"><button class="btn" type="button" id="copyBtn">結果をコピー（Excel 用）</button></div>`;
-  if (s.extra) h += s.extra(p, c, R);
-  $("#result").innerHTML = h;
+  if (R.strip && R.strip.length) h += `<h3>等級・区分（押すと切り替わります）</h3><div class="strip">${R.strip.map((x, i) => `<button type="button" data-strip="${i}" aria-pressed="${!!x.on}"><b>${x.label}</b>${x.val}</button>`).join("")}</div>`;
+  $("#resTop").innerHTML = h;
+  $("#resBottom").innerHTML = (R.ok ? `<div class="row"><button class="btn" type="button" id="copyBtn">結果をコピー（Excel 用）</button></div>` : "") + (s.extra ? s.extra(p, c, R) : "");
   $("#tables").innerHTML = s.tables(p, c, R);
   last = { s, p, R };
 }
 
 function update() {
-  const p = parse(st.dim);
+  const p = parse(st.dim, st.kind);
   $("#dim").classList.toggle("bad", !!p && p.type === "bad");
-  $("#dimKind").textContent = !p ? "" : p.type === "bad" ? "数値として読めません" : KIND[p.type];
+  // 記号を打って入れたときは、種類のボタンもそれに合わせる
+  const k = p && p.typed ? p.type : st.kind;
+  $$("#kind button").forEach(b => b.setAttribute("aria-pressed", b.dataset.v === k));
+  $("#dimNote").textContent = !p ? "" : p.type === "bad" ? "数値として読めません" : p.typed && p.type !== st.kind ? `記号から「${KIND[p.type]}」として読みました` : "";
   renderPick(p); renderResult(p); save();
 }
 const full = () => { renderConds(); update(); };
+const toResult = () => { if (narrow() && $("#step3").scrollIntoView) $("#step3").scrollIntoView({ behavior: reduce() ? "auto" : "smooth", block: "start" }); };
 
 // =====================================================================
 // 操作
 // =====================================================================
 $("#dim").value = st.dim;
 $("#dim").addEventListener("input", e => { st.dim = e.target.value; update(); });
-$("#pick").addEventListener("click", e => { const b = e.target.closest("[data-std]"); if (!b) return; st.std = b.dataset.std; full(); });
+$("#kind").addEventListener("click", e => { const b = e.target.closest("[data-v]"); if (!b) return; st.kind = b.dataset.v; const p = parse(st.dim); if (p && p.typed) { st.dim = p.str; $("#dim").value = st.dim; } update(); });
+$("#pick").addEventListener("click", e => { const b = e.target.closest("[data-std]"); if (!b) return; st.std = b.dataset.std; full(); toResult(); });
 $("#conds").addEventListener("click", e => {
   const b = e.target.closest("[data-seg]"); if (!b) return;
   const c = st.c[st.std]; c[b.dataset.seg] = b.dataset.v;
@@ -409,11 +436,13 @@ $("#conds").addEventListener("change", e => {
   if (e.target.tagName === "SELECT" || e.target.type === "checkbox") full(); else update();
 });
 $("#conds").addEventListener("input", e => { const k = e.target.dataset.c; if (!k || e.target.type !== "text") return; st.c[st.std][k] = e.target.value; update(); });
-$("#result").addEventListener("click", e => {
+$("#step3").addEventListener("click", e => {
   const b = e.target.closest("[data-strip]");
   if (b && last && last.R.strip) { Object.assign(st.c[st.std], last.R.strip[+b.dataset.strip].set); full(); return; }
   if (e.target.closest("#copyBtn")) copyResult();
 });
+// 早見表は狭い画面では閉じておく
+if (narrow()) $("#qtDetails").open = false;
 
 function toast(m) { const t = $("#toast"); t.textContent = m; t.hidden = false; clearTimeout(toast.h); toast.h = setTimeout(() => t.hidden = true, 1800); }
 const plain = s => String(s ?? "").replace(/<[^>]+>/g, "").replace(/,/g, "").replace(/\s+/g, " ").trim();
