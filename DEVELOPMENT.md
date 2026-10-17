@@ -7,7 +7,7 @@
 ```
 index.html             画面（スタイルを含む）
 js/tables.js           規格の表（JIS B 0405・B 0419・B 0403、DIN 16901、ISO 3302-1、JIS G 3141・G 4305・H 4000・H 4100）。Node でも読み込み可
-js/app.js              画面処理（表の引き方、一覧と早見表、入力の保存、テーマ、Service Worker の登録）
+js/app.js              画面処理（規格ごとの条件と表引き STDS、結果と早見表、入力の保存、テーマ、Service Worker の登録）
 sw.js                  オフライン用のキャッシュ処理（Service Worker）
 manifest.webmanifest   アプリとして追加するための設定
 icons/                 アプリアイコン（tools/make_icons.py で作る）
@@ -39,6 +39,10 @@ node tests/test.js    # 不一致があれば終了コード 1
 - **ISO 3302-1**：表の最後の範囲を超える寸法は、呼び寸法に `pct`（%）を掛けます
 - **JIS H 4100** の中空部を囲む肉厚：肉厚 × % を、表の最小・最大で制限します
 
+## 規格を足すとき
+
+`js/app.js` の `STDS` に 1 項目を足します。`def`（条件の初期値）、`ui(c)`（条件の画面）、`solve(p, c)`（表引き。`ok` なら `tol`・`tolStr`・`lo`・`hi`、だめなら `note` と、規格の選択ボタンに出す短い理由 `short`）、`tables(p, c, R)`（早見表）を持たせます。`strip` を返すと「ほかの等級・区分なら」に並び、押すとその `set` が条件に入ります。
+
 ## 入力の保存
 
-localStorage のキー `gentol-calc-state`（タブ、等級、材料などの条件）と `gentol-calc-state-<入力欄の id>`（寸法の欄）。読み書きはすべて try/catch で囲み、保存できない環境でも動きます。テーマは QC Workbench の全ツールで共通のキー `qc-workbench-theme`。
+localStorage のキー `gentol-calc-v2`（寸法、選んだ規格、規格ごとの条件）。読み書きはすべて try/catch で囲み、保存できない環境でも動きます。テーマは QC Workbench の全ツールで共通のキー `qc-workbench-theme`。

@@ -15,7 +15,7 @@
 <meta property="og:image" content="https://kotaooka.github.io/gentol-calc/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="普通公差計算機：寸法の一覧と、該当欄を強調した普通公差の早見表">
+<meta property="og:image:alt" content="普通公差計算機：寸法と規格から出した普通公差と、該当欄を強調した早見表">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="theme-color" content="#1d5c96" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#11161b" media="(prefers-color-scheme: dark)">
@@ -31,7 +31,7 @@
   try { const t = localStorage.getItem("qc-workbench-theme"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch (e) { /* 保存できない環境 */ }
 </script>
 <style>
-/* レイアウト：タブで規格の系統を切り替える。各タブは左に条件と寸法、右に一覧、下に詳細と早見表（該当の欄を強調）。配色・字体は QC Workbench の DESIGN.md に従う */
+/* レイアウト：上から ① 寸法を入れる → ② 規格を選ぶ（各規格の値を先に表示）→ ③ 条件と結果 → 早見表。配色・字体は QC Workbench の DESIGN.md に従う */
 :root {
   --bg: #eef1f4; --surface: #ffffff; --ink: #15212c; --ink2: #475563; --muted: #74818e;
   --line: #d5dce3; --grid: #e4e9ee; --accent: #1d5c96; --accent-ink: #ffffff; --accent-weak: #e1ebf5;
@@ -53,11 +53,12 @@
   --warn: #e3a84e; --warn-weak: #36280f; --ng: #f07a70; --ng-weak: #3a1c1a; color-scheme: dark;
 }
 * { box-sizing: border-box; }
-body { background: var(--bg); color: var(--ink); font-family: var(--f-ui); font-size: 15px; line-height: 1.6; text-autospace: normal; }
-body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
-header.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); border-bottom: 1px solid var(--line); }
+[hidden] { display: none !important; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-ui); font-size: 15px; line-height: 1.6; text-autospace: normal; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+header.top { background: var(--bg); border-bottom: 1px solid var(--line); }
 .top-in, .wrap { max-width: 1080px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
-.top-in { padding-block: 12px 0; }
+.top-in { padding-block: 12px; }
 .brand { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
 .brand h1 { font-size: 1.15rem; margin: 0; letter-spacing: .02em; }
 .brand .std, .brand .home, .brand .crumb { font-size: .78rem; color: var(--muted); }
@@ -65,86 +66,91 @@ header.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; b
 .brand .home:hover { color: var(--accent); text-decoration: underline; }
 .brand .crumb { margin-right: -6px; }
 .brand .theme { margin-left: auto; }
-nav.tabs { display: flex; gap: 4px; margin-top: 8px; overflow-x: auto; scrollbar-width: none; }
-nav.tabs::-webkit-scrollbar { display: none; }
-nav.tabs button { flex: 0 0 auto; border: 0; background: none; font: inherit; color: var(--ink2); padding: 8px 14px 10px; cursor: pointer; border-bottom: 3px solid transparent; }
-nav.tabs button[aria-selected="true"] { color: var(--ink); font-weight: 700; border-bottom-color: var(--accent); }
 .wrap { padding-block: 16px 40px; display: flex; flex-direction: column; gap: 16px; }
-.tabpanel { display: flex; flex-direction: column; gap: 16px; }
-.lead { margin: 0; color: var(--ink2); font-size: .88rem; max-width: 72ch; }
-.panel { display: grid; grid-template-columns: minmax(0, 330px) minmax(0, 1fr); gap: 16px; align-items: start; }
-@media (max-width: 760px) { .panel { grid-template-columns: minmax(0, 1fr); } }
 .box { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 16px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
-.box h2 { font-size: .95rem; margin: 0; text-wrap: balance; }
+.box h2 { font-size: .95rem; margin: 0; display: flex; align-items: center; gap: 8px; }
+.step { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); font: 500 .8rem var(--f-num); flex: none; }
 .box h3 { font-size: .85rem; margin: 0; color: var(--ink2); }
 .hint { font-size: .8rem; color: var(--muted); margin: 0; }
 .hint code { font-family: var(--f-num); color: var(--ink2); }
-label.lb, .nm { font-size: .8rem; color: var(--ink2); }
+.lb, .nm { font-size: .8rem; color: var(--ink2); }
+button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.btn { font: inherit; font-size: .85rem; border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 6px; padding: 6px 12px; cursor: pointer; }
+.btn:hover { border-color: var(--accent); }
+
+/* ① 寸法 */
+.dimrow { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; }
+.dimrow .field { display: flex; flex-direction: column; gap: 4px; }
+#dim { width: 12ch; font: 500 1.9rem/1.2 var(--f-num); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; }
+#dim.bad { border-color: var(--ng); background: var(--ng-weak); }
+#dimKind { font-size: .85rem; color: var(--ink2); padding-bottom: 8px; }
+
+/* ② 規格 */
+.groups { display: flex; flex-direction: column; gap: 12px; }
+.pick { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr)); gap: 8px; }
+.pick button { text-align: left; font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; cursor: pointer; display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; align-items: baseline; }
+.pick button:hover { border-color: var(--accent); }
+.pick button[aria-pressed="true"] { background: var(--accent-weak); border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.pick .pn { font-weight: 700; font-size: .9rem; }
+.pick .pv { font: 500 1rem var(--f-num); font-variant-numeric: tabular-nums; text-align: right; }
+.pick .pv.na { font: .76rem var(--f-ui); color: var(--muted); }
+.pick .ps { grid-column: 1 / -1; font-size: .74rem; color: var(--muted); }
+
+/* ③ 条件と結果 */
+.panel { display: grid; grid-template-columns: minmax(0, 330px) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 760px) { .panel { grid-template-columns: minmax(0, 1fr); } }
+.conds { display: flex; flex-direction: column; gap: 12px; }
 .field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-.fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 12px; }
-textarea { width: 100%; min-height: 150px; resize: vertical; font: 500 .95rem/1.7 var(--f-num); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; }
 select, input[type="text"] { width: 100%; font: inherit; font-size: .88rem; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 7px 9px; }
 input[type="text"] { font: 500 .95rem var(--f-num); }
 .chk { display: flex; gap: 6px; align-items: flex-start; font-size: .82rem; color: var(--ink2); }
 .chk input { margin-top: 4px; accent-color: var(--accent); }
-.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-.btn { font: inherit; font-size: .85rem; border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 6px; padding: 6px 12px; cursor: pointer; }
-.btn:hover { border-color: var(--accent); }
-button:focus-visible, textarea:focus-visible, select:focus-visible, input:focus-visible, tr:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-.seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
-.seg button { border: 0; background: var(--bg); color: var(--ink2); font: 500 .88rem var(--f-ui); padding: 6px 12px; cursor: pointer; }
-.seg.mono button { font-family: var(--f-num); padding: 6px 14px; }
+.seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; align-self: flex-start; }
+.seg button { border: 0; background: var(--bg); color: var(--ink2); font: .86rem var(--f-ui); padding: 6px 12px; cursor: pointer; }
+.seg.mono button { font: 500 .88rem var(--f-num); padding: 6px 14px; }
 .seg button + button { border-left: 1px solid var(--line); }
 .seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
 .desig { font-family: var(--f-num); font-size: .85rem; background: var(--accent-weak); border-radius: 6px; padding: 6px 10px; }
-
-.scroll { overflow-x: auto; }
-table { border-collapse: collapse; width: 100%; font-size: .88rem; }
-th { font-weight: 400; color: var(--ink2); text-align: left; padding: 6px 8px; white-space: nowrap; }
-td { padding: 6px 8px; white-space: nowrap; }
-.num { font-family: var(--f-num); font-variant-numeric: tabular-nums; text-align: right; }
-thead th { border-bottom: 1px solid var(--line); font-size: .78rem; }
-tbody tr + tr td, tbody tr + tr th { border-top: 1px solid var(--grid); }
-table.list tbody tr { cursor: pointer; }
-table.list tbody tr:hover td { background: var(--bg); }
-table.list tbody tr.sel td { background: var(--accent-weak); }
-table.list tbody tr.sel td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
-.in { font-family: var(--f-num); }
-.kind { font-size: .78rem; color: var(--ink2); }
-.tol { font-weight: 700; }
-.note { color: var(--warn); font-size: .82rem; white-space: normal; }
-.flag { color: var(--warn); font-size: .76rem; font-family: var(--f-ui); font-weight: 400; margin-left: 4px; }
-
 .hero { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 18px; }
-.hero .big { font: 500 1.9rem/1.2 var(--f-num); font-variant-numeric: tabular-nums; }
-.hero .big small { font-size: 1.1rem; color: var(--accent); margin-left: 4px; }
-.hero .lim { font: 500 1rem var(--f-num); color: var(--ink2); }
+.hero .big { font: 500 2.4rem/1.15 var(--f-num); font-variant-numeric: tabular-nums; }
+.hero .big small { font-size: 1.4rem; color: var(--accent); margin-left: 6px; }
+.hero .lim { font: 500 1.1rem var(--f-num); color: var(--ink2); }
+.hero .sub2 { flex-basis: 100%; font-size: .82rem; color: var(--ink2); }
 .msg { border-radius: 6px; padding: 8px 10px; font-size: .86rem; }
 .msg.warn { background: var(--warn-weak); color: var(--warn); }
-.msg.info { background: var(--accent-weak); color: var(--ink); }
+.strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(84px, 1fr)); gap: 6px; }
+.strip button { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; text-align: center; font-family: var(--f-num); font-size: .88rem; cursor: pointer; }
+.strip button b { display: block; font: .72rem var(--f-ui); color: var(--muted); }
+.strip button[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-weak); }
+.strip button:hover { border-color: var(--accent); }
 .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
 .card { border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .card .t { font-size: .78rem; color: var(--ink2); }
 .card .v { font: 500 1.15rem var(--f-num); font-variant-numeric: tabular-nums; }
 .card .v.na { color: var(--muted); font-size: .9rem; font-family: var(--f-ui); }
 .card .s { font-size: .74rem; color: var(--muted); }
-.strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
-.strip div { border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; text-align: center; font-family: var(--f-num); font-size: .85rem; }
-.strip div b { display: block; font-size: .72rem; color: var(--muted); font-weight: 500; font-family: var(--f-ui); }
-.strip div.on { border-color: var(--accent); background: var(--accent-weak); }
 .sub { border-top: 1px dashed var(--line); padding-top: 12px; display: flex; flex-direction: column; gap: 10px; }
 ul.rules { margin: 0; padding-left: 1.2em; font-size: .82rem; color: var(--ink2); display: flex; flex-direction: column; gap: 2px; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 
+/* 早見表 */
+.scroll { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: .86rem; }
+th { font-weight: 400; color: var(--ink2); text-align: left; padding: 5px 8px; white-space: nowrap; }
+td { padding: 5px 8px; white-space: nowrap; }
+.num { font-family: var(--f-num); font-variant-numeric: tabular-nums; text-align: right; }
+thead th { border-bottom: 1px solid var(--line); font-size: .76rem; }
+tbody tr + tr td, tbody tr + tr th { border-top: 1px solid var(--grid); }
 .qt td.hl, .qt th.hl { background: var(--accent-weak); }
 .qt td.hit { background: var(--accent); color: var(--accent-ink); font-weight: 700; }
 .qt td.q { text-decoration: underline dotted var(--warn); text-underline-offset: 3px; }
 .qt tbody th { font-family: var(--f-num); color: var(--ink); }
-.qt td.unk { color: var(--muted); font-family: var(--f-ui); font-size: .78rem; }
+.qt td.unk { color: var(--muted); font-family: var(--f-ui); font-size: .76rem; }
 .tables { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 460px), 1fr)); gap: 18px; }
-.tables.one { grid-template-columns: minmax(0, 1fr); }
 .qwrap { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .src { font-size: .76rem; color: var(--muted); margin: 0; }
 .src b { color: var(--warn); font-weight: 400; }
+.flag { color: var(--warn); }
 footer { font-size: .78rem; color: var(--muted); }
 footer a { color: inherit; }
 .support a { white-space: nowrap; }
@@ -157,170 +163,42 @@ footer a { color: inherit; }
   <div class="top-in">
     <div class="brand">
       <a class="home" href="https://kotaooka.github.io/" title="QC Workbench（ツール一覧）へ戻る">QC Workbench</a><span class="crumb" aria-hidden="true">›</span><h1>普通公差計算機</h1>
-      <span class="std">JIS B 0405 / B 0419 / B 0403 / DIN 16901 / ISO 3302-1 / 板厚</span>
+      <span class="std">機械加工 / 樹脂 / 鋳造 / ゴム / 板厚</span>
       <button class="btn theme" id="themeBtn" type="button" aria-label="表示テーマを切り替え">表示：自動</button>
     </div>
-    <nav class="tabs" role="tablist">
-      <button role="tab" type="button" data-tab="mach" aria-selected="true">機械加工</button>
-      <button role="tab" type="button" data-tab="din" aria-selected="false">樹脂成形品</button>
-      <button role="tab" type="button" data-tab="cast" aria-selected="false">鋳造品</button>
-      <button role="tab" type="button" data-tab="rub" aria-selected="false">ゴム製品</button>
-      <button role="tab" type="button" data-tab="thk" aria-selected="false">板厚・肉厚</button>
-    </nav>
   </div>
 </header>
 
 <main class="wrap">
+  <section class="box">
+    <h2><span class="step">1</span>寸法を入れる</h2>
+    <div class="dimrow">
+      <div class="field"><label class="lb" for="dim">寸法 [mm]</label><input id="dim" type="text" inputmode="decimal" autocomplete="off" spellcheck="false" placeholder="25"></div>
+      <span id="dimKind"></span>
+    </div>
+    <p class="hint">面取り・かどの丸みは <code>C0.5</code> <code>R3</code>、角度は <code>30°</code> の形で入れます（機械加工の規格で使います）。<code>φ8</code> <code>t1.6</code> のような書き方も読めます。</p>
+  </section>
 
-<!-- ===== 機械加工 ===== -->
-<section class="tabpanel" data-panel="mach">
-  <p class="lead">公差の指示がない寸法に当てはまる普通寸法公差（JIS B 0405）と普通幾何公差（JIS B 0419）を表示します。行を選ぶと、その寸法の詳細と早見表の該当欄を示します。</p>
-  <div class="panel">
-    <div class="box">
-      <h2>寸法と公差等級</h2>
-      <div class="row" style="gap:16px">
-        <div class="field"><span class="nm">JIS B 0405（寸法・角度）</span>
-          <div class="seg mono" id="segLin" role="group" aria-label="JIS B 0405 の公差等級">
-            <button type="button" data-v="f" title="精級">f</button><button type="button" data-v="m" title="中級">m</button><button type="button" data-v="c" title="粗級">c</button><button type="button" data-v="v" title="極粗級">v</button>
-          </div></div>
-        <div class="field"><span class="nm">JIS B 0419（幾何）</span>
-          <div class="seg mono" id="segGeo" role="group" aria-label="JIS B 0419 の公差等級">
-            <button type="button" data-v="H">H</button><button type="button" data-v="K">K</button><button type="button" data-v="L">L</button>
-          </div></div>
-      </div>
-      <div class="desig" id="desig"></div>
-      <label class="lb" for="dims">寸法 [mm]（1 行に 1 つ）</label>
-      <textarea id="dims" spellcheck="false" autocomplete="off"></textarea>
-      <p class="hint">面取り・かどの丸みは <code>C0.5</code> <code>R3</code>、直径は <code>φ8</code>、角度は <code>30°/25</code>（角度 / 短い辺の長さ）の形で入れます。<code>2-φ5</code> のような個数付きも読めます。</p>
-      <div class="row"><button class="btn" type="button" data-clear="dims">入力を消す</button><button class="btn" type="button" data-ex="dims">例を入れる</button></div>
+  <section class="box">
+    <h2><span class="step">2</span>規格を選ぶ</h2>
+    <div class="groups" id="pick"></div>
+    <p class="hint">右の値は、今の条件で引いた公差です。選ぶと下で条件を変えられます。</p>
+  </section>
+
+  <section class="box">
+    <h2><span class="step">3</span><span id="resTitle">結果</span></h2>
+    <div class="panel">
+      <div class="conds" id="conds"></div>
+      <div class="conds" id="result"></div>
     </div>
-    <div class="box">
-      <div class="row" style="justify-content:space-between"><h2>一覧</h2><button class="btn" type="button" data-copy="mach">結果をコピー（Excel 用）</button></div>
-      <div class="scroll"><table class="list" id="list"><thead><tr><th>寸法</th><th>区分</th><th class="num">普通公差</th><th class="num">下限</th><th class="num">上限</th></tr></thead><tbody></tbody></table></div>
-      <p class="hint" id="listHint"></p>
-    </div>
-  </div>
-  <section class="box" id="detail"></section>
+  </section>
+
   <section class="box">
     <h2>早見表</h2>
-    <p class="hint">選んだ寸法が入る範囲の列と、選んでいる等級の行を色で示します。単位は mm（角度を除く）。「—」は規格に値がない欄です。</p>
     <div class="tables" id="tables"></div>
-    <p class="src">JIS B 0405:1991（ISO 2768-1）、JIS B 0419:1991（ISO 2768-2）。表の値は規格の内容から起こしたもので、規格票との照合はまだです。</p>
   </section>
-</section>
 
-<!-- ===== 樹脂成形品 ===== -->
-<section class="tabpanel" data-panel="din" hidden>
-  <p class="lead">DIN 16901 の一般公差（公差の指示がない寸法に当てはめる ± の値）を表示します。材料から公差グループを選び、寸法が型の可動部をまたぐかどうかで A と B を切り替えます。</p>
-  <div class="panel">
-    <div class="box">
-      <h2>材料と寸法</h2>
-      <div class="field"><label class="lb" for="dinMat">材料（公差グループ）</label><select id="dinMat"></select></div>
-      <div class="field"><span class="nm">寸法の種類</span>
-        <div class="seg" id="dinAB" role="group" aria-label="寸法の種類">
-          <button type="button" data-v="B">B：型で決まる</button><button type="button" data-v="A">A：型をまたぐ</button>
-        </div>
-        <p class="hint">B は 1 つの型部品の中で決まる寸法。A は肉厚・底厚、スライドや突き出しなど型の可動部で決まる寸法で、B より 0.10 mm 広くなります。</p>
-      </div>
-      <label class="chk"><input type="checkbox" id="dinThick">無強化の結晶性樹脂で、肉厚が 4 mm を超える（1 つ上のグループを使う）</label>
-      <div class="desig" id="dinDesig"></div>
-      <label class="lb" for="dinDims">寸法 [mm]（1 行に 1 つ）</label>
-      <textarea id="dinDims" spellcheck="false" autocomplete="off"></textarea>
-      <div class="row"><button class="btn" type="button" data-clear="dinDims">入力を消す</button><button class="btn" type="button" data-ex="dinDims">例を入れる</button></div>
-    </div>
-    <div class="box">
-      <div class="row" style="justify-content:space-between"><h2>一覧</h2><button class="btn" type="button" data-copy="din">結果をコピー（Excel 用）</button></div>
-      <div class="scroll"><table class="list" data-list="din"><thead><tr><th>寸法</th><th class="num">一般公差</th><th class="num">下限</th><th class="num">上限</th></tr></thead><tbody></tbody></table></div>
-      <div data-msg="din"></div>
-    </div>
-  </div>
-  <section class="box"><h2>早見表</h2><div class="tables one" data-tables="din"></div></section>
-</section>
-
-<!-- ===== 鋳造品 ===== -->
-<section class="tabpanel" data-panel="cast" hidden>
-  <p class="lead">JIS B 0403（ISO 8062）の鋳造公差を表示します。表の値は公差の全幅で、特に指示がなければ呼び寸法の上下に半分ずつ振り分けます。</p>
-  <div class="panel">
-    <div class="box">
-      <h2>公差等級と寸法</h2>
-      <div class="field"><label class="lb" for="ctSel">鋳造公差等級（CT）</label><select id="ctSel"></select></div>
-      <label class="chk"><input type="checkbox" id="ctWall">肉厚の寸法（指定した等級より 1 つ粗い等級を使う）</label>
-      <div class="desig" id="ctDesig"></div>
-      <label class="lb" for="ctDims">寸法 [mm]（1 行に 1 つ）</label>
-      <textarea id="ctDims" spellcheck="false" autocomplete="off"></textarea>
-      <div class="row"><button class="btn" type="button" data-clear="ctDims">入力を消す</button><button class="btn" type="button" data-ex="ctDims">例を入れる</button></div>
-    </div>
-    <div class="box">
-      <div class="row" style="justify-content:space-between"><h2>一覧</h2><button class="btn" type="button" data-copy="cast">結果をコピー（Excel 用）</button></div>
-      <div class="scroll"><table class="list" data-list="cast"><thead><tr><th>寸法</th><th class="num">鋳造公差</th><th class="num">全幅</th><th class="num">下限</th><th class="num">上限</th></tr></thead><tbody></tbody></table></div>
-      <div data-msg="cast"></div>
-    </div>
-  </div>
-  <section class="box"><h2>早見表</h2><div class="tables one" data-tables="cast"></div></section>
-</section>
-
-<!-- ===== ゴム製品 ===== -->
-<section class="tabpanel" data-panel="rub" hidden>
-  <p class="lead">ISO 3302-1（JIS K 6203 に相当する国際規格）のゴム製品の寸法許容差を表示します。成形品、押出品の断面、押出品の切断長さを切り替えます。</p>
-  <div class="panel">
-    <div class="box">
-      <h2>製品と等級</h2>
-      <div class="field"><span class="nm">製品</span>
-        <div class="seg" id="rubMode" role="group" aria-label="製品の種類">
-          <button type="button" data-v="M">成形品</button><button type="button" data-v="E">押出（断面）</button><button type="button" data-v="L">押出（切断長さ）</button>
-        </div></div>
-      <div class="field"><span class="nm">等級</span><div class="seg mono" id="rubCls" role="group" aria-label="等級"></div></div>
-      <div class="field" id="rubFCwrap"><span class="nm">寸法の種類</span>
-        <div class="seg" id="rubFC" role="group" aria-label="寸法の種類">
-          <button type="button" data-v="F">F：固定寸法</button><button type="button" data-v="C">C：型締め寸法</button>
-        </div>
-        <p class="hint">F は型の 1 つの部分で決まる寸法。C はパーティングをまたぐ厚さなど、型締めで変わる寸法です。M4 は F と C が同じ値です。</p>
-      </div>
-      <div class="desig" id="rubDesig"></div>
-      <label class="lb" for="rubDims">寸法 [mm]（1 行に 1 つ）</label>
-      <textarea id="rubDims" spellcheck="false" autocomplete="off"></textarea>
-      <div class="row"><button class="btn" type="button" data-clear="rubDims">入力を消す</button><button class="btn" type="button" data-ex="rubDims">例を入れる</button></div>
-      <p class="hint">VDI 2005（ゴム部品）は、許容差の表を確かめられる資料が見つからなかったため載せていません。</p>
-    </div>
-    <div class="box">
-      <div class="row" style="justify-content:space-between"><h2>一覧</h2><button class="btn" type="button" data-copy="rub">結果をコピー（Excel 用）</button></div>
-      <div class="scroll"><table class="list" data-list="rub"><thead><tr><th>寸法</th><th class="num">許容差</th><th class="num">下限</th><th class="num">上限</th></tr></thead><tbody></tbody></table></div>
-      <div data-msg="rub"></div>
-    </div>
-  </div>
-  <section class="box"><h2>早見表</h2><div class="tables one" data-tables="rub"></div></section>
-</section>
-
-<!-- ===== 板厚・肉厚 ===== -->
-<section class="tabpanel" data-panel="thk" hidden>
-  <p class="lead">金属材料の板厚（押出形材は肉厚）の許容差を表示します。規格を選び、幅や合金の区分を入れてから厚さを並べます。</p>
-  <div class="panel">
-    <div class="box">
-      <h2>規格と条件</h2>
-      <div class="field"><label class="lb" for="thStd">規格</label>
-        <select id="thStd">
-          <option value="g3141">JIS G 3141 冷間圧延鋼板（SPCC など）</option>
-          <option value="g4305">JIS G 4305 冷間圧延ステンレス鋼板</option>
-          <option value="h4000">JIS H 4000 アルミニウム板</option>
-          <option value="h4100">JIS H 4100 アルミニウム押出形材</option>
-        </select></div>
-      <div id="thOpts" class="fields"></div>
-      <div class="desig" id="thDesig"></div>
-      <label class="lb" for="thDims">厚さ [mm]（1 行に 1 つ）</label>
-      <textarea id="thDims" spellcheck="false" autocomplete="off"></textarea>
-      <div class="row"><button class="btn" type="button" data-clear="thDims">入力を消す</button><button class="btn" type="button" data-ex="thDims">例を入れる</button></div>
-      <p class="hint" id="thPos"></p>
-    </div>
-    <div class="box">
-      <div class="row" style="justify-content:space-between"><h2>一覧</h2><button class="btn" type="button" data-copy="thk">結果をコピー（Excel 用）</button></div>
-      <div class="scroll"><table class="list" data-list="thk"><thead><tr><th>厚さ</th><th class="num">許容差</th><th class="num">下限</th><th class="num">上限</th></tr></thead><tbody></tbody></table></div>
-      <div data-msg="thk"></div>
-    </div>
-  </div>
-  <section class="box"><h2>早見表</h2><div class="tables one" data-tables="thk"></div></section>
-</section>
-
-  <footer>計算は端末の中だけで行い、入力した値はどこにも送信しません。一度開けばオフラインでも使えます。表の値は公開資料から起こしたもので、各表の下に照合の状況を書いています。<b style="font-weight:400;color:var(--warn)">△</b> の付いた値は、図面や受入判定に使う前に規格票で確かめてください。<a href="https://github.com/kotaooka/gentol-calc">GitHub</a> ・ MIT License<span class="support"> ・ <a href="https://buymeacoffee.com/kotaooka" target="_blank" rel="noopener"><span aria-hidden="true">☕</span> 開発を応援する（Buy Me a Coffee）</a></span></footer>
+  <footer>計算は端末の中だけで行い、入力した値はどこにも送信しません。一度開けばオフラインでも使えます。表の値は公開資料から起こしたもので、各表の下に照合の状況を書いています。<span class="flag">△</span> の付いた値は、図面や受入判定に使う前に規格票で確かめてください。<a href="https://github.com/kotaooka/gentol-calc">GitHub</a> ・ MIT License<span class="support"> ・ <a href="https://buymeacoffee.com/kotaooka" target="_blank" rel="noopener"><span aria-hidden="true">☕</span> 開発を応援する（Buy Me a Coffee）</a></span></footer>
 </main>
 <div id="toast" hidden></div>
 
