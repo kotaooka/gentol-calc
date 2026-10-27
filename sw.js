@@ -1,6 +1,6 @@
 // 普通公差計算機の Service Worker
 // 公開ファイルを更新したら VERSION を上げる。古いキャッシュは activate 時に削除される
-const VERSION = 'v1.2.3';
+const VERSION = 'v1.3.0';
 const APP_CACHE = `gentol-calc-${VERSION}`;
 const FONT_CACHE = 'gentol-calc-fonts';
 

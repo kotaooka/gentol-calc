@@ -106,6 +106,7 @@ function thkTable(T, L, nRows) {
   return grid({ title: T.title + "（±mm）", corner: "厚さ \\ 幅", rowHeads, colHeads: T.wHeads, vals: T.v.slice(0, nRows), hr: L ? L.r : -1, hc: L ? L.c : -1, q: T.q, allQ: T.allQ, src: T.src });
 }
 
+const PRN = { P: "打抜き", D: "曲げ・絞り" };
 const matShort = i => { const n = DIN_MAT[i][0]; const g = n.match(/^グループ (\d+)/); return g ? "G" + g[1] : n.split(/ \/ |（|、/)[0] + (/ \/ |、/.test(n) ? " ほか" : ""); };
 const STDS = [
   // ---------------- 機械加工 ----------------
@@ -157,6 +158,70 @@ const STDS = [
         mk("JIS B 0419 対称度", SY, gc, nat, gI(SY), c.geo) +
         grid({ title: "JIS B 0419 円周振れ", rowHeads: gc, colHeads: ["公差"], vals: gc.map(x => [RO[x]]), hr: gc.indexOf(c.geo), hc: 0, corner: "等級",
           src: "JIS B 0405:1991（ISO 2768-1）、JIS B 0419:1991（ISO 2768-2）。表の値は規格の内容から起こしたもので、規格票との照合はまだです。" });
+    } },
+
+  // ---------------- 金属プレス加工品 ----------------
+  { id: "press", group: "普通公差", name: "プレス加工品", sub: "JIS B 0408",
+    def: { proc: "P", cls: "B" }, stripKeys: ["cls"],
+    brief: c => `${PRN[c.proc]}・${c.cls} 級`,
+    ui: c => segUI("proc", "加工", [["P", "打抜き"], ["D", "曲げ・絞り"]], c.proc) +
+      segUI("cls", "等級", ["A", "B", "C"].map(x => [x, x, `JIS B 0405 の ${PR.eq[c.proc][x]} 相当`]), c.cls, true) +
+      hint("曲げ・絞りで決まる寸法（曲げ線をはさむ寸法、絞りの高さなど）は「曲げ・絞り」、打抜きの輪郭や穴で決まる寸法は「打抜き」を選びます。せん断機で切っただけの板は JIS B 0410（せん断加工品）です。"),
+    solve(p, c) {
+      const desig = `JIS B 0408-${c.cls}（${PRN[c.proc]}）`;
+      const e = baseErr(p); if (e) return Object.assign(e, { desig });
+      const i = idx(p.val, PR.his);
+      if (i < 0) return ng("2000 mm を超える寸法は表にありません。個々に公差を指示します。", "範囲外", { desig });
+      const strip = ["A", "B", "C"].map(x => ({ label: `${x}（${PR.eq[c.proc][x]} 相当）`, val: "±" + nat(PR[c.proc][x][i]), set: { cls: x }, on: x === c.cls }));
+      const o = c.proc === "P" ? "D" : "P";
+      return pm(p, PR[c.proc][c.cls][i], { i, desig, strip, sub2: `${PRN[o]}なら ±${nat(PR[o][c.cls][i])}（同じ ${c.cls} 級）` });
+    },
+    tables(p, c, R) {
+      const rows = [["P", "A"], ["P", "B"], ["P", "C"], ["D", "A"], ["D", "B"], ["D", "C"]];
+      return grid({ title: "JIS B 0408 表1 打抜き・表2 曲げ及び絞りの普通寸法許容差（±mm）", corner: "加工・等級", rowHeads: rows.map(([pr, x]) => `${PRN[pr]} ${x}`), colHeads: PR.heads,
+        vals: rows.map(([pr, x]) => PR[pr][x]), hr: rows.findIndex(([pr, x]) => pr === c.proc && x === c.cls), hc: R.ok ? R.i : -1, src: PR.src }) +
+        rules(["打抜きの A・B・C 級は JIS B 0405 の f・m・c、曲げ・絞りの A・B・C 級は m・c・v に相当します。",
+          "図面には規格番号と等級を書きます。打抜きと曲げ・絞りで等級を変えるときは「打抜き：JIS B 0408-B、曲げ及び絞り：JIS B 0408-C」のように分けて書きます。",
+          "金属板のせん断加工品は対象外で、JIS B 0410 によります。"]);
+    } },
+
+  // ---------------- 金属板せん断加工品 ----------------
+  { id: "shear", group: "普通公差", name: "せん断加工品", sub: "JIS B 0410（直刃シャー）",
+    def: { t: "1.6", cls: "A" }, stripKeys: ["cls"],
+    brief: c => `t ${c.t || "?"}・${c.cls} 級`,
+    ui: c => txtUI("t", "板厚 t [mm]", c.t) + segUI("cls", "等級", [["A", "A"], ["B", "B"]], c.cls, true) +
+      hint("ギャップシャー・スケヤシャーなどの直刃せん断機で切った、厚さ 12 mm 以下の金属板が対象です。入れた寸法は切断幅（切った辺とその対辺の距離）として引きます。"),
+    solve(p, c) {
+      const desig = `JIS B 0410-${c.cls}（切断幅）`;
+      const e = baseErr(p); if (e) return Object.assign(e, { desig });
+      const t = num(c.t);
+      if (!(t > 0)) return ng("板厚を数値で入れてください。", "板厚を入れる", { desig });
+      if (t > 12 + 1e-9) return ng("板厚 12 mm を超える板は規格の対象外です。", "板厚が範囲外", { desig });
+      const b = idx(t, SH.tH), i = idx(p.val, SH.his);
+      if (i < 0) return ng("4000 mm を超える寸法は表にありません。個々に公差を指示します。", "範囲外", { desig, b, t });
+      const strip = ["A", "B"].map(x => ({ label: `${x} 級`, val: SH.W[x][b][i] === null ? "—" : "±" + nat(SH.W[x][b][i]), set: { cls: x }, on: x === c.cls }));
+      const v = SH.W[c.cls][b][i];
+      if (v === null) return ng(`板厚 ${SH.tHeads[b].slice(2)} mm の ${c.cls} 級には、この寸法の値がありません。${c.cls === "A" && SH.W.B[b][i] !== null ? "B 級にするか" : ""}個々に公差を指示します。`, `${c.cls} は値なし`, { desig, i, b, t, strip, L: p.val });
+      return pm(p, v, { i, b, t, desig, strip, L: p.val });
+    },
+    extra(p, c, R) {
+      const L = R.L, t = R.t; if (!(L > 0) || !(t > 0)) return "";
+      const i = idx(L, SH.his), bs = idx(t, SH.tH), bq = idx(t, SH.qH);
+      const g = (T, b) => i < 0 || b < 0 || T[c.cls][b][i] === null ? null : nat(T[c.cls][b][i]);
+      return `<div class="sub"><h3>この長さ（${grp(String(L))} mm）で決まる普通公差　JIS B 0410-${c.cls}</h3><div class="cards">
+        ${card("真直度", g(SH.S, bs), "この長さを切断長さ（切った辺の長さ）とした値")}
+        ${card("直角度", g(SH.Q, bq), "この長さを短辺とした値。長辺をデータムにとる")}
+      </div>${rules(["切断幅と、真直度・直角度で等級を変えるときは「切断幅：JIS B 0410-A、真直度及び直角度：JIS B 0410-B」のように分けて書きます。"])}</div>`;
+    },
+    tables(p, c, R) {
+      const t = num(c.t), bw = t > 0 && t <= 12 ? idx(t, SH.tH) : -1, bq = t > 0 && t <= 12 ? idx(t, SH.qH) : -1, k = c.cls === "A" ? 0 : 1;
+      const L = R.L, i = L > 0 ? idx(L, SH.his) : -1;
+      const mk = (title, T, bands, b, corner, src) => grid({ title, corner, rowHeads: SH.heads, colHeads: bands.flatMap(h => [`${h} A`, `${h} B`]),
+        vals: SH.heads.map((_, r) => bands.flatMap((_, j) => [T.A[j][r], T.B[j][r]])), hr: i, hc: b < 0 ? -1 : b * 2 + k, src });
+      return mk("JIS B 0410 表1 切断幅の普通寸法許容差（±mm）", SH.W, SH.tHeads, bw, "寸法 \\ 板厚・等級", SH.srcW) +
+        mk("JIS B 0410 表2 真直度の普通公差（mm）", SH.S, SH.tHeads, bw, "切断長さ \\ 板厚・等級", "") +
+        mk("JIS B 0410 表3 直角度の普通公差（mm）", SH.Q, SH.qHeads, bq, "短辺 \\ 板厚・等級", SH.srcSQ) +
+        rules(["「—」は規格に値がない欄です。板厚 6 mm を超える板には A 級がありません。"]);
     } },
 
   // ---------------- 樹脂成形品 ----------------

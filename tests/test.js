@@ -13,6 +13,27 @@ for (const t of [T.LIN, T.CH, T.ANG, T.ST, T.PE, T.SY]) {
 }
 ok(T.LIN.m[2] === 0.2 && T.LIN.f[7] === null && T.LIN.v[0] === null, "B 0405 代表値");
 
+// JIS B 0408：各等級が JIS B 0405 の相当する等級と一致する（6 以下は 0.5〜6 の大きい方、2000 まで）
+{
+  const b0405 = k => [Math.max(T.LIN[k][0] ?? 0, T.LIN[k][1]), ...T.LIN[k].slice(2, 7)];
+  ok(asc(T.PR.his) && T.PR.heads.length === 6, "B 0408 の範囲");
+  for (const pr of ["P", "D"]) for (const x of ["A", "B", "C"]) {
+    ok(T.PR[pr][x].length === 6 && asc(T.PR[pr][x]), `B 0408 ${pr}${x} の並び`);
+    ok(JSON.stringify(T.PR[pr][x]) === JSON.stringify(b0405(T.PR.eq[pr][x])), `B 0408 ${pr}${x} = B 0405 ${T.PR.eq[pr][x]}`);
+  }
+}
+
+// JIS B 0410：表の大きさ、寸法・板厚とともに広がること、B ≧ A
+for (const [T2, nb, name] of [[T.SH.W, 4, "切断幅"], [T.SH.S, 4, "真直度"], [T.SH.Q, 3, "直角度"]]) {
+  for (const x of ["A", "B"]) {
+    ok(T2[x].length === nb && T2[x].every(r => r.length === 6), `B 0410 ${name} ${x} の大きさ`);
+    T2[x].forEach((r, j) => ok(nonDec(r), `B 0410 ${name} ${x} 板厚 ${j}`));
+    for (let r = 0; r < 6; r++) ok(nonDec(T2[x].map(b => b[r])), `B 0410 ${name} ${x} 寸法 ${r}`);
+  }
+  for (let j = 0; j < nb; j++) for (let r = 0; r < 6; r++) { const a = T2.A[j][r], b = T2.B[j][r]; ok(a === null || (b !== null && b >= a), `B 0410 ${name} B≧A ${j}-${r}`); }
+}
+ok(T.SH.W.A[2][1] === 0.8 && T.SH.W.B[3][5] === 4 && T.SH.S.B[2][5] === 5 && T.SH.Q.B[0][3] === 3 && T.SH.Q.A[1][2] === 1, "B 0410 代表値");
+
 // DIN 16901：B の列が広がり、A = B + 0.10 で最後は 800〜1000
 for (const g of [130, 140, 150, 160]) { ok(T.DIN.B[g].length === 21 && asc(T.DIN.B[g]), `DIN ${g} の並び`); }
 for (let i = 0; i < 21; i++) ok(T.DIN.B[130][i] < T.DIN.B[140][i] && T.DIN.B[140][i] < T.DIN.B[150][i] && T.DIN.B[150][i] < T.DIN.B[160][i], `DIN グループ間 ${i}`);
