@@ -49,7 +49,7 @@ const ng = (note, short, extra = {}) => Object.assign({ ok: false, note, short: 
 function baseErr(p, ang) {
   if (p.type === "bad") return ng("寸法を数値で入れてください。", "—");
   if (p.type === "ang" && !ang) return ng("角度は機械加工（JIS B 0405）でだけ引けます。", "角度は対象外");
-  if (!(p.val > 0)) return ng("0 より大きい値を入れてください。", "—");
+  if (!(p.val > 0)) return ng("0より大きい値を入れてください。", "—");
   return null;
 }
 
@@ -92,7 +92,7 @@ function thkLookup(T, p, w, nRows) {
   const c = isGL ? idx(w, T.wH) : idxGE(w, T.wL, T.wMax, T.wMaxOpen);
   const r = isGL ? (T.tMin !== undefined && p.val < T.tMin - 1e-9 ? -1 : idx(p.val, T.tH)) : idxGE(p.val, T.tL, tMax);
   const base = { r: r < nRows ? r : -1, c, tMax, nRows };
-  if (c < 0) return Object.assign(base, { err: ng(`幅 ${grp(String(w))} mm は表の範囲外です。`, "幅が範囲外") });
+  if (c < 0) return Object.assign(base, { err: ng(`幅${grp(String(w))} mmは表の範囲外です。`, "幅が範囲外") });
   if (r < 0 || r >= nRows) return Object.assign(base, { err: ng("この厚さは表の範囲外です。", "範囲外") });
   const t = T.v[r][c];
   if (t === undefined) return Object.assign(base, { err: ng("この欄の値は資料で確かめられていません。", "不明") });
@@ -112,13 +112,13 @@ const STDS = [
   // ---------------- 機械加工 ----------------
   { id: "mach", group: "普通公差", name: "機械加工", sub: "JIS B 0405 / B 0419",
     def: { lin: "m", geo: "K", side: "" }, stripKeys: ["lin"],
-    brief: c => `${c.lin} 級・幾何 ${c.geo}`,
-    ui: c => segUI("lin", "JIS B 0405 の公差等級", LC.map(x => [x, x, LCN[x]]), c.lin, true) + segUI("geo", "JIS B 0419 の公差等級", ["H", "K", "L"].map(x => [x, x]), c.geo, true) +
+    brief: c => `${c.lin}級・幾何${c.geo}`,
+    ui: c => segUI("lin", "JIS B 0405の公差等級", LC.map(x => [x, x, LCN[x]]), c.lin, true) + segUI("geo", "JIS B 0419の公差等級", ["H", "K", "L"].map(x => [x, x]), c.geo, true) +
       txtUI("side", "角度の短い方の辺の長さ [mm]", c.side, "角度の普通公差は、角度をはさむ短い方の辺の長さで決まります。"),
     show: (p) => ({ side: p && p.type === "ang" }),
     solve(p, c) {
       const e = baseErr(p, true); if (e) return e;
-      const desig = `JIS B 0405-${c.lin}　／　幾何も含めるとき JIS B 0419-${c.lin}${c.geo}`;
+      const desig = `JIS B 0405-${c.lin}　／　幾何も含めるときJIS B 0419-${c.lin}${c.geo}`;
       if (p.type === "ang") {
         const side = num(c.side);
         if (!(side > 0)) return ng("角度の短い方の辺の長さを入れてください。", "辺の長さが必要", { desig });
@@ -127,12 +127,12 @@ const STDS = [
           strip: LC.map(x => ({ label: `${x}（${LCN[x]}）`, val: "±" + minStr(ANG[x][i]), set: { lin: x }, on: x === c.lin })) };
       }
       const T = p.type === "ch" ? CH : LIN;
-      if (p.val < 0.5) return ng("0.5 mm 未満は普通公差の範囲外です。個々に公差を指示します。", "0.5未満は個別", { desig, L: p.val });
+      if (p.val < 0.5) return ng("0.5 mm未満は普通公差の範囲外です。個々に公差を指示します。", "0.5未満は個別", { desig, L: p.val });
       const i = idx(p.val, T.his);
-      if (i < 0) return ng("4000 mm を超える寸法は表にありません。個々に公差を指示します。", "範囲外", { desig, L: p.val });
+      if (i < 0) return ng("4000 mmを超える寸法は表にありません。個々に公差を指示します。", "範囲外", { desig, L: p.val });
       const strip = LC.map(x => ({ label: `${x}（${LCN[x]}）`, val: T[x][i] === null ? "—" : "±" + nat(T[x][i]), set: { lin: x }, on: x === c.lin }));
       const t = T[c.lin][i];
-      if (t === null) return ng(`等級 ${c.lin} にはこの範囲の値がありません。等級を変えるか個々に公差を指示します。`, `${c.lin} は値なし`, { desig, i, strip, L: p.val });
+      if (t === null) return ng(`等級${c.lin}にはこの範囲の値がありません。等級を変えるか個々に公差を指示します。`, `${c.lin}は値なし`, { desig, i, strip, L: p.val });
       return pm(p, t, { i, desig, strip, L: p.val });
     },
     extra(p, c, R) {
@@ -150,58 +150,58 @@ const STDS = [
       const mk = (title, T, cls, fmt, hc, cur) => grid({ title, rowHeads: cls, colHeads: T.heads, vals: cls.map(x => T[x]), hr: cls.indexOf(cur), hc, fmt, corner: "等級" });
       const gc = ["H", "K", "L"], gI = T => (L > 0) ? idx(L, T.his) : -1;
       const main = !p || p.type === "lin" || p.type === "bad"
-        ? mk("JIS B 0405 長さ寸法（面取り部分を除く）", LIN, LC, t => "±" + nat(t), p && p.type === "lin" && R.i !== undefined ? R.i : -1, c.lin)
-        : p.type === "ch" ? mk("JIS B 0405 面取り部分の長さ寸法（かどの丸み・かどの面取り）", CH, LC, t => "±" + nat(t), R.i ?? -1, c.lin)
-        : mk("JIS B 0405 角度寸法（短い方の辺の長さ）", ANG, LC, t => "±" + minStr(t), R.i ?? -1, c.lin);
+        ? mk("JIS B 0405長さ寸法（面取り部分を除く）", LIN, LC, t => "±" + nat(t), p && p.type === "lin" && R.i !== undefined ? R.i : -1, c.lin)
+        : p.type === "ch" ? mk("JIS B 0405面取り部分の長さ寸法（かどの丸み・かどの面取り）", CH, LC, t => "±" + nat(t), R.i ?? -1, c.lin)
+        : mk("JIS B 0405角度寸法（短い方の辺の長さ）", ANG, LC, t => "±" + minStr(t), R.i ?? -1, c.lin);
       return main +
-        mk("JIS B 0419 真直度・平面度", ST, gc, nat, gI(ST), c.geo) + mk("JIS B 0419 直角度（短い方の辺の長さ）", PE, gc, nat, gI(PE), c.geo) +
-        mk("JIS B 0419 対称度", SY, gc, nat, gI(SY), c.geo) +
-        grid({ title: "JIS B 0419 円周振れ", rowHeads: gc, colHeads: ["公差"], vals: gc.map(x => [RO[x]]), hr: gc.indexOf(c.geo), hc: 0, corner: "等級",
+        mk("JIS B 0419真直度・平面度", ST, gc, nat, gI(ST), c.geo) + mk("JIS B 0419直角度（短い方の辺の長さ）", PE, gc, nat, gI(PE), c.geo) +
+        mk("JIS B 0419対称度", SY, gc, nat, gI(SY), c.geo) +
+        grid({ title: "JIS B 0419円周振れ", rowHeads: gc, colHeads: ["公差"], vals: gc.map(x => [RO[x]]), hr: gc.indexOf(c.geo), hc: 0, corner: "等級",
           src: "JIS B 0405:1991（ISO 2768-1）、JIS B 0419:1991（ISO 2768-2）。表の値は規格の内容から起こしたもので、規格票との照合はまだです。" });
     } },
 
   // ---------------- 金属プレス加工品 ----------------
   { id: "press", group: "普通公差", name: "プレス加工品", sub: "JIS B 0408",
     def: { proc: "P", cls: "B" }, stripKeys: ["cls"],
-    brief: c => `${PRN[c.proc]}・${c.cls} 級`,
+    brief: c => `${PRN[c.proc]}・${c.cls}級`,
     ui: c => segUI("proc", "加工", [["P", "打抜き"], ["D", "曲げ・絞り"]], c.proc) +
-      segUI("cls", "等級", ["A", "B", "C"].map(x => [x, x, `JIS B 0405 の ${PR.eq[c.proc][x]} 相当`]), c.cls, true) +
-      hint("曲げ・絞りで決まる寸法（曲げ線をはさむ寸法、絞りの高さなど）は「曲げ・絞り」、打抜きの輪郭や穴で決まる寸法は「打抜き」を選びます。せん断機で切っただけの板は JIS B 0410（せん断加工品）です。"),
+      segUI("cls", "等級", ["A", "B", "C"].map(x => [x, x, `JIS B 0405の${PR.eq[c.proc][x]}相当`]), c.cls, true) +
+      hint("曲げ・絞りで決まる寸法（曲げ線をはさむ寸法、絞りの高さなど）は「曲げ・絞り」、打抜きの輪郭や穴で決まる寸法は「打抜き」を選びます。せん断機で切っただけの板はJIS B 0410（せん断加工品）です。"),
     solve(p, c) {
       const desig = `JIS B 0408-${c.cls}（${PRN[c.proc]}）`;
       const e = baseErr(p); if (e) return Object.assign(e, { desig });
       const i = idx(p.val, PR.his);
-      if (i < 0) return ng("2000 mm を超える寸法は表にありません。個々に公差を指示します。", "範囲外", { desig });
-      const strip = ["A", "B", "C"].map(x => ({ label: `${x}（${PR.eq[c.proc][x]} 相当）`, val: "±" + nat(PR[c.proc][x][i]), set: { cls: x }, on: x === c.cls }));
+      if (i < 0) return ng("2000 mmを超える寸法は表にありません。個々に公差を指示します。", "範囲外", { desig });
+      const strip = ["A", "B", "C"].map(x => ({ label: `${x}（${PR.eq[c.proc][x]}相当）`, val: "±" + nat(PR[c.proc][x][i]), set: { cls: x }, on: x === c.cls }));
       const o = c.proc === "P" ? "D" : "P";
-      return pm(p, PR[c.proc][c.cls][i], { i, desig, strip, sub2: `${PRN[o]}なら ±${nat(PR[o][c.cls][i])}（同じ ${c.cls} 級）` });
+      return pm(p, PR[c.proc][c.cls][i], { i, desig, strip, sub2: `${PRN[o]}なら ±${nat(PR[o][c.cls][i])}（同じ${c.cls}級）` });
     },
     tables(p, c, R) {
       const rows = [["P", "A"], ["P", "B"], ["P", "C"], ["D", "A"], ["D", "B"], ["D", "C"]];
-      return grid({ title: "JIS B 0408 表1 打抜き・表2 曲げ及び絞りの普通寸法許容差（±mm）", corner: "加工・等級", rowHeads: rows.map(([pr, x]) => `${PRN[pr]} ${x}`), colHeads: PR.heads,
+      return grid({ title: "JIS B 0408表1打抜き・表2曲げ及び絞りの普通寸法許容差（±mm）", corner: "加工・等級", rowHeads: rows.map(([pr, x]) => `${PRN[pr]} ${x}`), colHeads: PR.heads,
         vals: rows.map(([pr, x]) => PR[pr][x]), hr: rows.findIndex(([pr, x]) => pr === c.proc && x === c.cls), hc: R.ok ? R.i : -1, src: PR.src }) +
-        rules(["打抜きの A・B・C 級は JIS B 0405 の f・m・c、曲げ・絞りの A・B・C 級は m・c・v に相当します。",
+        rules(["打抜きのA・B・C級はJIS B 0405のf・m・c、曲げ・絞りのA・B・C級はm・c・vに相当します。",
           "図面には規格番号と等級を書きます。打抜きと曲げ・絞りで等級を変えるときは「打抜き：JIS B 0408-B、曲げ及び絞り：JIS B 0408-C」のように分けて書きます。",
-          "金属板のせん断加工品は対象外で、JIS B 0410 によります。"]);
+          "金属板のせん断加工品は対象外で、JIS B 0410によります。"]);
     } },
 
   // ---------------- 金属板せん断加工品 ----------------
   { id: "shear", group: "普通公差", name: "せん断加工品", sub: "JIS B 0410（直刃シャー）",
     def: { t: "1.6", cls: "A" }, stripKeys: ["cls"],
-    brief: c => `t ${c.t || "?"}・${c.cls} 級`,
-    ui: c => txtUI("t", "板厚 t [mm]", c.t) + segUI("cls", "等級", [["A", "A"], ["B", "B"]], c.cls, true) +
-      hint("ギャップシャー・スケヤシャーなどの直刃せん断機で切った、厚さ 12 mm 以下の金属板が対象です。入れた寸法は切断幅（切った辺とその対辺の距離）として引きます。"),
+    brief: c => `t ${c.t || "?"}・${c.cls}級`,
+    ui: c => txtUI("t", "板厚t [mm]", c.t) + segUI("cls", "等級", [["A", "A"], ["B", "B"]], c.cls, true) +
+      hint("ギャップシャー・スケヤシャーなどの直刃せん断機で切った、厚さ12 mm以下の金属板が対象です。入れた寸法は切断幅（切った辺とその対辺の距離）として引きます。"),
     solve(p, c) {
       const desig = `JIS B 0410-${c.cls}（切断幅）`;
       const e = baseErr(p); if (e) return Object.assign(e, { desig });
       const t = num(c.t);
       if (!(t > 0)) return ng("板厚を数値で入れてください。", "板厚を入れる", { desig });
-      if (t > 12 + 1e-9) return ng("板厚 12 mm を超える板は規格の対象外です。", "板厚が範囲外", { desig });
+      if (t > 12 + 1e-9) return ng("板厚12 mmを超える板は規格の対象外です。", "板厚が範囲外", { desig });
       const b = idx(t, SH.tH), i = idx(p.val, SH.his);
-      if (i < 0) return ng("4000 mm を超える寸法は表にありません。個々に公差を指示します。", "範囲外", { desig, b, t });
-      const strip = ["A", "B"].map(x => ({ label: `${x} 級`, val: SH.W[x][b][i] === null ? "—" : "±" + nat(SH.W[x][b][i]), set: { cls: x }, on: x === c.cls }));
+      if (i < 0) return ng("4000 mmを超える寸法は表にありません。個々に公差を指示します。", "範囲外", { desig, b, t });
+      const strip = ["A", "B"].map(x => ({ label: `${x}級`, val: SH.W[x][b][i] === null ? "—" : "±" + nat(SH.W[x][b][i]), set: { cls: x }, on: x === c.cls }));
       const v = SH.W[c.cls][b][i];
-      if (v === null) return ng(`板厚 ${SH.tHeads[b].slice(2)} mm の ${c.cls} 級には、この寸法の値がありません。${c.cls === "A" && SH.W.B[b][i] !== null ? "B 級にするか" : ""}個々に公差を指示します。`, `${c.cls} は値なし`, { desig, i, b, t, strip, L: p.val });
+      if (v === null) return ng(`板厚${SH.tHeads[b].slice(2)} mmの${c.cls}級には、この寸法の値がありません。${c.cls === "A" && SH.W.B[b][i] !== null ? "B級にするか" : ""}個々に公差を指示します。`, `${c.cls}は値なし`, { desig, i, b, t, strip, L: p.val });
       return pm(p, v, { i, b, t, desig, strip, L: p.val });
     },
     extra(p, c, R) {
@@ -218,40 +218,40 @@ const STDS = [
       const L = R.L, i = L > 0 ? idx(L, SH.his) : -1;
       const mk = (title, T, bands, b, corner, src) => grid({ title, corner, rowHeads: SH.heads, colHeads: bands.flatMap(h => [`${h} A`, `${h} B`]),
         vals: SH.heads.map((_, r) => bands.flatMap((_, j) => [T.A[j][r], T.B[j][r]])), hr: i, hc: b < 0 ? -1 : b * 2 + k, src });
-      return mk("JIS B 0410 表1 切断幅の普通寸法許容差（±mm）", SH.W, SH.tHeads, bw, "寸法 \\ 板厚・等級", SH.srcW) +
-        mk("JIS B 0410 表2 真直度の普通公差（mm）", SH.S, SH.tHeads, bw, "切断長さ \\ 板厚・等級", "") +
-        mk("JIS B 0410 表3 直角度の普通公差（mm）", SH.Q, SH.qHeads, bq, "短辺 \\ 板厚・等級", SH.srcSQ) +
-        rules(["「—」は規格に値がない欄です。板厚 6 mm を超える板には A 級がありません。"]);
+      return mk("JIS B 0410表1切断幅の普通寸法許容差（±mm）", SH.W, SH.tHeads, bw, "寸法 \\ 板厚・等級", SH.srcW) +
+        mk("JIS B 0410表2真直度の普通公差（mm）", SH.S, SH.tHeads, bw, "切断長さ \\ 板厚・等級", "") +
+        mk("JIS B 0410表3直角度の普通公差（mm）", SH.Q, SH.qHeads, bq, "短辺 \\ 板厚・等級", SH.srcSQ) +
+        rules(["「—」は規格に値がない欄です。板厚6 mmを超える板にはA級がありません。"]);
     } },
 
   // ---------------- 樹脂成形品 ----------------
-  { id: "din", group: "普通公差", name: "樹脂成形品", sub: "DIN 16901 一般公差",
+  { id: "din", group: "普通公差", name: "樹脂成形品", sub: "DIN 16901一般公差",
     def: { mat: 0, ab: "B", thick: false }, stripKeys: [],
     brief: c => `${matShort(c.mat)}・${c.ab}${c.thick ? "・厚肉" : ""}`,
     ui: c => selUI("mat", "材料（公差グループ）", DIN_MAT.map(([n, g], i) => [i, `${n}（${g}）`]), c.mat) +
       segUI("ab", "寸法の種類", [["B", "B：型で決まる"], ["A", "A：型をまたぐ"]], c.ab) +
-      hint("B は 1 つの型部品の中で決まる寸法。A は肉厚・底厚、スライドや突き出しなど型の可動部で決まる寸法で、B より 0.10 mm 広くなります。") +
-      chkUI("thick", "無強化の結晶性樹脂で、肉厚が 4 mm を超える（1 つ上のグループを使う）", c.thick),
+      hint("Bは1つの型部品の中で決まる寸法。Aは肉厚・底厚、スライドや突き出しなど型の可動部で決まる寸法で、Bより0.10 mm広くなります。") +
+      chkUI("thick", "無強化の結晶性樹脂で、肉厚が4 mmを超える（1つ上のグループを使う）", c.thick),
     solve(p, c) {
       const base = DIN_MAT[c.mat][1], g = c.thick ? base + 10 : base;
-      const desig = g > 160 ? `グループ ${base} の 1 つ上は表にありません` : `DIN 16901 公差グループ ${g}・寸法の種類 ${c.ab}${c.thick ? `（${base} から 1 つ上げた）` : ""}`;
+      const desig = g > 160 ? `グループ${base}の1つ上は表にありません` : `DIN 16901公差グループ${g}・寸法の種類${c.ab}${c.thick ? `（${base}から1つ上げた）` : ""}`;
       const e = baseErr(p); if (e) return Object.assign(e, { desig });
-      if (g > 160) return ng("グループ 160 より上の一般公差は規格にありません。", "値なし", { desig });
+      if (g > 160) return ng("グループ160より上の一般公差は規格にありません。", "値なし", { desig });
       const i = idx(p.val, DIN.his);
-      if (i < 0) return ng("1000 mm を超える寸法は表にありません。", "範囲外", { desig });
+      if (i < 0) return ng("1000 mmを超える寸法は表にありません。", "範囲外", { desig });
       const add = c.ab === "A" ? 0.10 : 0;
-      const strip = [130, 140, 150, 160].map(x => ({ label: `グループ ${x}`, val: "±" + (DIN.B[x][i] + add).toFixed(2), set: { mat: DIN_MAT.findIndex(m => m[0] === `グループ ${x} を直接選ぶ`), thick: false }, on: x === g }));
-      const warn = DIN.fixed.has(`${g}-${i}`) ? "スキャンの読み違いを A − B = 0.10 の関係と前後の値で直した値です。" : g !== 130 ? "グループ 140〜160 の値は 1 資料（スキャン）から起こし、A − B = 0.10 の関係で確かめています。" : "";
+      const strip = [130, 140, 150, 160].map(x => ({ label: `グループ${x}`, val: "±" + (DIN.B[x][i] + add).toFixed(2), set: { mat: DIN_MAT.findIndex(m => m[0] === `グループ${x}を直接選ぶ`), thick: false }, on: x === g }));
+      const warn = DIN.fixed.has(`${g}-${i}`) ? "スキャンの読み違いをA − B = 0.10の関係と前後の値で直した値です。" : g !== 130 ? "グループ140〜160の値は1資料（スキャン）から起こし、A − B = 0.10の関係で確かめています。" : "";
       return pm(p, DIN.B[g][i] + add, { i, g, desig, strip, warn });
     },
     tables(p, c, R) {
       const g = R.g || DIN_MAT[c.mat][1];
       const rowsG = [130, 140, 150, 160].flatMap(x => [[x, "B"], [x, "A"]]);
       const q = new Set(); rowsG.forEach(([x], ri) => DIN.heads.forEach((_, k) => { if (DIN.fixed.has(`${x}-${k}`)) q.add(`${ri}-${k}`); }));
-      return grid({ title: "DIN 16901 表2 一般公差（±mm）", corner: "グループ", rowHeads: rowsG.map(([x, ab]) => `${x} ${ab}`), colHeads: DIN.heads,
+      return grid({ title: "DIN 16901表2一般公差（±mm）", corner: "グループ", rowHeads: rowsG.map(([x, ab]) => `${x} ${ab}`), colHeads: DIN.heads,
         vals: rowsG.map(([x, ab]) => DIN.B[x].map(t => +(t + (ab === "A" ? 0.10 : 0)).toFixed(2))), hr: rowsG.findIndex(([x, ab]) => x === g && ab === c.ab), hc: R.ok ? R.i : -1, fmt: t => t.toFixed(2), q,
-        src: "DIN 16901:1982（廃止。DIN は後継に DIN 16742 を挙げる）。グループ 130 は 4 資料で一致。140〜160 は公式英訳のスキャン 1 資料から起こし、点線の下線は読み違いを直したセル。140 は別の 1 資料とも照合。直接記入する公差（110〜160 の全幅）は読み取りの誤りが多いため載せていません。" }) +
-        rules(["材料と公差グループの対応は DIN 16901 表1 の「一般公差」の列によります。UF/MF 無機充塡は資料で食い違うため外しました。", "表1 の注記：無強化の結晶性樹脂で肉厚が 4 mm を超える場合は 1 つ上のグループを使います。"]);
+        src: "DIN 16901:1982（廃止。DINは後継にDIN 16742を挙げる）。グループ130は4資料で一致。140〜160は公式英訳のスキャン1資料から起こし、点線の下線は読み違いを直したセル。140は別の1資料とも照合。直接記入する公差（110〜160の全幅）は読み取りの誤りが多いため載せていません。" }) +
+        rules(["材料と公差グループの対応はDIN 16901表1の「一般公差」の列によります。UF/MF無機充塡は資料で食い違うため外しました。", "表1の注記：無強化の結晶性樹脂で肉厚が4 mmを超える場合は1つ上のグループを使います。"]);
     } },
 
   // ---------------- 鋳造品 ----------------
@@ -259,29 +259,29 @@ const STDS = [
     def: { ct: 9, wall: false }, stripKeys: [],
     brief: c => `CT${c.ct}${c.wall ? "・肉厚" : ""}`,
     ui: c => selUI("ct", "鋳造公差等級（CT）", Array.from({ length: 16 }, (_, i) => [i + 1, "CT" + (i + 1)]), c.ct) +
-      chkUI("wall", "肉厚の寸法（指定した等級より 1 つ粗い等級を使う）", c.wall) +
+      chkUI("wall", "肉厚の寸法（指定した等級より1つ粗い等級を使う）", c.wall) +
       hint("表の値は公差の全幅です。特に指示がなければ、呼び寸法の上下に半分ずつ振り分けます。等級の目安は早見表の下にあります。"),
     solve(p, c) {
       const ct = +c.ct, g = c.wall ? ct + 1 : ct;
-      const desig = g > 16 ? "CT16 より粗い等級はありません" : `JIS B 0403 CT${g}${c.wall ? `（肉厚のため CT${ct} から 1 つ粗く）` : ""}`;
+      const desig = g > 16 ? "CT16より粗い等級はありません" : `JIS B 0403 CT${g}${c.wall ? `（肉厚のためCT${ct}から1つ粗く）` : ""}`;
       const e = baseErr(p); if (e) return Object.assign(e, { desig });
-      if (g > 16) return ng("CT16 より粗い等級はありません。CT16 は通常、CT15 を指定した鋳造品の肉厚だけに使います。", "値なし", { desig });
+      if (g > 16) return ng("CT16より粗い等級はありません。CT16は通常、CT15を指定した鋳造品の肉厚だけに使います。", "値なし", { desig });
       const i = idx(p.val, CT.his);
-      if (i < 0) return ng("10000 mm を超える寸法は表にありません。", "範囲外", { desig });
+      if (i < 0) return ng("10000 mmを超える寸法は表にありません。", "範囲外", { desig });
       const lo = Math.max(1, ct - 2), hi = Math.min(16 - (c.wall ? 1 : 0), lo + 4);
       const strip = []; for (let b = Math.max(1, hi - 4); b <= hi; b++) { const v = CT.v[i][b - 1 + (c.wall ? 1 : 0)]; strip.push({ label: "CT" + b, val: v === null ? "—" : "±" + nat(v / 2), set: { ct: b }, on: b === ct }); }
       const tot = CT.v[i][g - 1];
-      if (tot === null) return ng(g >= 13 && p.val <= 16 ? "CT13〜CT16 は 16 mm 以下の寸法に適用しません。個々に公差を指示します。" : `CT${g} にはこの寸法範囲の値がありません。`, "値なし", { desig, i, g, strip });
-      return pm(p, tot / 2, { i, g, desig, strip, sub2: `公差の全幅 ${nat(tot)} mm` });
+      if (tot === null) return ng(g >= 13 && p.val <= 16 ? "CT13〜CT16は16 mm以下の寸法に適用しません。個々に公差を指示します。" : `CT${g}にはこの寸法範囲の値がありません。`, "値なし", { desig, i, g, strip });
+      return pm(p, tot / 2, { i, g, desig, strip, sub2: `公差の全幅${nat(tot)} mm` });
     },
     tables(p, c, R) {
       const g = R.g || (+c.ct + (c.wall ? 1 : 0));
-      return grid({ title: "JIS B 0403 表1 鋳造公差（全幅 mm）", corner: "寸法 \\ 等級", rowHeads: CT.heads, colHeads: CT.v[0].map((_, k) => "CT" + (k + 1)), vals: CT.v,
-        hr: R.i ?? -1, hc: g <= 16 ? g - 1 : -1, src: "JIS B 0403:1995（2014年に正誤票、数値の変更なし）。日本ベアリング（NBK）の抜粋と ISO 8062 を引く資料の、同じ数値の並びを表に組み直したもの。" }) +
-        rules(["肉厚には、指定した等級より 1 つ粗い等級を使います（CT1〜CT15）。", "CT13〜CT16 の値は 16 mm 以下の寸法には適用しません。CT16 は通常、CT15 を指定した鋳造品の肉厚だけに使います。"]) +
-        grid({ title: "公差等級の目安：長期間製造する鋳放し鋳造品（附属書 B）", corner: "鋳造方法", rowHeads: CT_GUIDE.rows.map(x => x[0]), colHeads: CT_GUIDE.cols, vals: CT_GUIDE.rows.map(x => x[1]), fmt: t => "CT" + t,
+      return grid({ title: "JIS B 0403表1鋳造公差（全幅mm）", corner: "寸法 \\ 等級", rowHeads: CT.heads, colHeads: CT.v[0].map((_, k) => "CT" + (k + 1)), vals: CT.v,
+        hr: R.i ?? -1, hc: g <= 16 ? g - 1 : -1, src: "JIS B 0403:1995（2014年に正誤票、数値の変更なし）。日本ベアリング（NBK）の抜粋とISO 8062を引く資料の、同じ数値の並びを表に組み直したもの。" }) +
+        rules(["肉厚には、指定した等級より1つ粗い等級を使います（CT1〜CT15）。", "CT13〜CT16の値は16 mm以下の寸法には適用しません。CT16は通常、CT15を指定した鋳造品の肉厚だけに使います。"]) +
+        grid({ title: "公差等級の目安：長期間製造する鋳放し鋳造品（附属書B）", corner: "鋳造方法", rowHeads: CT_GUIDE.rows.map(x => x[0]), colHeads: CT_GUIDE.cols, vals: CT_GUIDE.rows.map(x => x[1]), fmt: t => "CT" + t,
           q: new Set(CT_GUIDE.rows.flatMap((x, ri) => x[2] ? x[1].map((_, k) => `${ri}-${k}`) : [])),
-          src: "砂型の 2 行は 2 資料で一致。点線の下線の金型・ダイカストの行は 1 資料だけ。精密鋳造（ロストワックス）の行は資料によって分け方が違うため載せていません。" });
+          src: "砂型の2行は2資料で一致。点線の下線の金型・ダイカストの行は1資料だけ。精密鋳造（ロストワックス）の行は資料によって分け方が違うため載せていません。" });
     } },
 
   // ---------------- ゴム製品 ----------------
@@ -291,7 +291,7 @@ const STDS = [
     ui: c => segUI("mode", "製品", [["M", "成形品"], ["E", "押出（断面）"], ["L", "押出（切断長さ）"]], c.mode) +
       segUI("cls", "等級", RUB_CLS[c.mode].map(x => [x, x]), c.cls, true) +
       (c.mode === "M" && c.cls !== "M4" ? segUI("fc", "寸法の種類", [["F", "F：固定寸法"], ["C", "C：型締め寸法"]], c.fc) +
-        hint("F は型の 1 つの部分で決まる寸法。C はパーティングをまたぐ厚さなど、型締めで変わる寸法です。M4 は F と C が同じ値です。") : "") +
+        hint("Fは型の1つの部分で決まる寸法。Cはパーティングをまたぐ厚さなど、型締めで変わる寸法です。M4はFとCが同じ値です。") : "") +
       hint("VDI 2005（ゴム部品）は、許容差の表を確かめられる資料が見つからなかったため載せていません。"),
     solve(p, c) {
       const T = rubT(c), key = rubKey(c);
@@ -300,44 +300,44 @@ const STDS = [
       const i = idx(p.val, T.his);
       const val = k => i < 0 ? p.val * T.pct[k] / 100 : T[k][i];
       const strip = RUB_CLS[c.mode].map(x => { const k = c.mode === "M" ? (x === "M4" ? "M4" : x + c.fc) : x; return { label: x, val: "±" + nat(+val(k).toFixed(3)), set: { cls: x }, on: x === c.cls }; });
-      if (i < 0) return pm(p, +val(key).toFixed(4), { i: -1, desig, strip, sub2: `表の最後の範囲を超えるため、呼び寸法の ${T.pct[key]}% として計算`, warn: c.mode === "E" ? "100 mm を超える断面の % は 1 資料だけで確かめた値です。" : "" });
+      if (i < 0) return pm(p, +val(key).toFixed(4), { i: -1, desig, strip, sub2: `表の最後の範囲を超えるため、呼び寸法の${T.pct[key]}%として計算`, warn: c.mode === "E" ? "100 mmを超える断面の%は1資料だけで確かめた値です。" : "" });
       return pm(p, T[key][i], { i, desig, strip });
     },
     tables(p, c, R) {
       const T = rubT(c), key = rubKey(c), isM = c.mode === "M";
       const keys = isM ? ["M1F", "M1C", "M2F", "M2C", "M3F", "M3C", "M4"] : RUB_CLS[c.mode];
-      return grid({ title: isM ? "ISO 3302-1 成形品（±mm）" : c.mode === "E" ? "ISO 3302-1 押出品の断面・支持なし（±mm）" : "ISO 3302-1 押出品の切断長さ（±mm）",
+      return grid({ title: isM ? "ISO 3302-1成形品（±mm）" : c.mode === "E" ? "ISO 3302-1押出品の断面・支持なし（±mm）" : "ISO 3302-1押出品の切断長さ（±mm）",
         corner: "等級", rowHeads: keys.map(k => k.replace(/([FC])$/, " $1")), colHeads: T.heads.concat([`${T.his[T.his.length - 1]}超`]),
         vals: keys.map(k => T[k].concat([T.pct[k] + "%"])), fmt: t => typeof t === "string" ? t : nat(t), hr: keys.indexOf(key), hc: R.ok ? (R.i < 0 ? T.his.length : R.i) : -1,
-        src: isM ? "ISO 3302-1:2014。3 資料（1996年版を名乗るものを含む）で一致。最後の列は呼び寸法に掛ける割合。" : c.mode === "E" ? "ISO 3302-1:2014。3 資料で一致。100 mm 超の割合は 1 資料だけ。" : "ISO 3302-1:2014。3 資料で一致。4000 mm 超は呼び寸法に掛ける割合。" });
+        src: isM ? "ISO 3302-1:2014。3資料（1996年版を名乗るものを含む）で一致。最後の列は呼び寸法に掛ける割合。" : c.mode === "E" ? "ISO 3302-1:2014。3資料で一致。100 mm超の割合は1資料だけ。" : "ISO 3302-1:2014。3資料で一致。4000 mm超は呼び寸法に掛ける割合。" });
     } },
 
   // ---------------- 冷間圧延鋼板 ----------------
-  { id: "g3141", group: "板厚・肉厚", name: "冷延鋼板", sub: "JIS G 3141（SPCC など）",
+  { id: "g3141", group: "板厚・肉厚", name: "冷延鋼板", sub: "JIS G 3141（SPCCなど）",
     def: { tbl: "A", w: "1000" }, stripKeys: ["tbl"], thick: true,
-    brief: c => `表 ${c.tbl}・幅 ${c.w || "?"}`,
-    ui: c => segUI("tbl", "表", [["A", "表15 A（圧延幅 600 以上）"], ["B", "表16 B（圧延幅 600 未満）"]], c.tbl) + txtUI("w", "幅 [mm]", c.w) +
-      hint("厚さは幅方向の端から 15 mm 以上内側の任意の点で測ります。"),
+    brief: c => `表${c.tbl}・幅${c.w || "?"}`,
+    ui: c => segUI("tbl", "表", [["A", "表15 A（圧延幅600以上）"], ["B", "表16 B（圧延幅600未満）"]], c.tbl) + txtUI("w", "幅 [mm]", c.w) +
+      hint("厚さは幅方向の端から15 mm以上内側の任意の点で測ります。"),
     solve(p, c) {
-      const T = c.tbl === "A" ? G3141A : G3141B, desig = c.tbl === "A" ? "JIS G 3141 表15 厚さの許容差 A" : "JIS G 3141 表16 厚さの許容差 B";
+      const T = c.tbl === "A" ? G3141A : G3141B, desig = c.tbl === "A" ? "JIS G 3141表15厚さの許容差A" : "JIS G 3141表16厚さの許容差B";
       const e = baseErr(p); if (e) return Object.assign(e, { desig });
       const w = num(c.w), L = thkLookup(T, p, w);
-      const strip = [["A", G3141A], ["B", G3141B]].map(([k, X]) => { const y = thkLookup(X, p, w); return { label: `表 ${k}`, val: y.err ? "—" : "±" + nat(y.t), set: { tbl: k }, on: k === c.tbl }; });
+      const strip = [["A", G3141A], ["B", G3141B]].map(([k, X]) => { const y = thkLookup(X, p, w); return { label: `表${k}`, val: y.err ? "—" : "±" + nat(y.t), set: { tbl: k }, on: k === c.tbl }; });
       if (L.err) return Object.assign(L.err, { desig, L, strip });
       return pm(p, L.t, { desig, L, strip, warn: L.warn });
     },
     tables: (p, c, R) => thkTable(c.tbl === "A" ? G3141A : G3141B, R.L) },
 
   // ---------------- 冷間圧延ステンレス鋼板 ----------------
-  { id: "g4305", group: "板厚・肉厚", name: "ステンレス鋼板", sub: "JIS G 4305 冷間圧延",
+  { id: "g4305", group: "板厚・肉厚", name: "ステンレス鋼板", sub: "JIS G 4305冷間圧延",
     def: { form: "plate", grade: "std", w: "1000" }, stripKeys: ["grade"], thick: true,
-    brief: c => `${c.form === "strip" ? "帯" : "板"}・${c.grade === "ET" ? "ET" : "標準"}・幅 ${c.w || "?"}`,
-    ui: c => segUI("form", "形状", [["plate", "板"], ["strip", "帯"]], c.form) + segUI("grade", "許容差", [["std", "標準"], ["ET", "記号 ET（注文者が指定）"]], c.grade) + txtUI("w", "幅 [mm]", c.w) +
-      hint("板は端から 15 mm 以上内側。帯は耳付きで幅 50 以上なら 25 mm 以上内側、切断縁で幅 30 以上なら 15 mm 以上内側、それより狭いものは幅の中央で測ります（2015年版 9.3.1）。記号 ST の表は値が見つからず載せていません。"),
+    brief: c => `${c.form === "strip" ? "帯" : "板"}・${c.grade === "ET" ? "ET" : "標準"}・幅${c.w || "?"}`,
+    ui: c => segUI("form", "形状", [["plate", "板"], ["strip", "帯"]], c.form) + segUI("grade", "許容差", [["std", "標準"], ["ET", "記号ET（注文者が指定）"]], c.grade) + txtUI("w", "幅 [mm]", c.w) +
+      hint("板は端から15 mm以上内側。帯は耳付きで幅50以上なら25 mm以上内側、切断縁で幅30以上なら15 mm以上内側、それより狭いものは幅の中央で測ります（2015年版9.3.1）。記号STの表は値が見つからず載せていません。"),
     solve(p, c) {
       const strip0 = c.form === "strip";
       const T = c.grade === "ET" ? G4305ET : G4305STD, n = (T === G4305STD && strip0) ? 14 : 0;
-      const desig = `JIS G 4305 ${c.grade === "ET" ? "記号 ET" : "標準"}・${strip0 ? "帯" : "板"}の厚さの許容差`;
+      const desig = `JIS G 4305 ${c.grade === "ET" ? "記号ET" : "標準"}・${strip0 ? "帯" : "板"}の厚さの許容差`;
       const e = baseErr(p); if (e) return Object.assign(e, { desig });
       const w = num(c.w), L = thkLookup(T, p, w, n);
       const strip = [["std", "標準", G4305STD], ["ET", "ET", G4305ET]].map(([k, lab, X]) => { const y = thkLookup(X, p, w, X === G4305STD && strip0 ? 14 : 0); return { label: lab, val: y.err ? "—" : "±" + nat(y.t), set: { grade: k }, on: k === c.grade }; });
@@ -349,30 +349,30 @@ const STDS = [
   // ---------------- アルミニウム板 ----------------
   { id: "h4000", group: "板厚・肉厚", name: "アルミ板", sub: "JIS H 4000",
     def: { roll: "c", grp: "1", w: "1000" }, stripKeys: ["grp"], thick: true,
-    brief: c => `${c.roll === "c" ? "冷間" : "熱間"}・その${c.grp}・幅 ${c.w || "?"}`,
+    brief: c => `${c.roll === "c" ? "冷間" : "熱間"}・その${c.grp}・幅${c.w || "?"}`,
     ui: c => segUI("roll", "圧延", [["c", "冷間圧延材"], ["h", "熱間圧延材"]], c.roll) +
-      selUI("grp", "合金の区分", [["1", "その1（1000系・3003・5005 など）"], ["2", "その2（5052・6061・7075 など）"]], c.grp) + txtUI("w", "幅 [mm]", c.w) +
+      selUI("grp", "合金の区分", [["1", "その1（1000系・3003・5005など）"], ["2", "その2（5052・6061・7075など）"]], c.grp) + txtUI("w", "幅 [mm]", c.w) +
       hint(`合金の区分（1999年版）　その1：${H4000_G[1]}　／　その2：${H4000_G[2]}`),
     solve(p, c) {
-      const T = h4000T(c), desig = T ? T.title.replace("の厚さの許容差", "") : "JIS H 4000 熱間圧延材（その2）";
+      const T = h4000T(c), desig = T ? T.title.replace("の厚さの許容差", "") : "JIS H 4000熱間圧延材（その2）";
       const e = baseErr(p); if (e) return Object.assign(e, { desig });
       const w = num(c.w);
       const strip = [["1", "その1"], ["2", "その2"]].map(([k, lab]) => { const X = h4000T(Object.assign({}, c, { grp: k })); const y = X && thkLookup(X, p, w); return { label: lab, val: !y || y.err ? "—" : "±" + nat(y.t), set: { grp: k }, on: k === c.grp }; });
-      if (!T) return ng("熱間圧延材（その2）は 2017年の追補で表が差し替わり、新しい値を確かめられる資料が見つからなかったため載せていません。", "未収録", { desig, strip });
+      if (!T) return ng("熱間圧延材（その2）は2017年の追補で表が差し替わり、新しい値を確かめられる資料が見つからなかったため載せていません。", "未収録", { desig, strip });
       const L = thkLookup(T, p, w);
       if (L.err) return Object.assign(L.err, { desig, L, strip });
-      return pm(p, L.t, { desig, L, strip, warn: L.warn, sub2: "片側だけの許容差にするときは、表の値の 2 倍を片側に振ります。" });
+      return pm(p, L.t, { desig, L, strip, warn: L.warn, sub2: "片側だけの許容差にするときは、表の値の2倍を片側に振ります。" });
     },
     tables(p, c, R) { const T = h4000T(c); return T ? thkTable(T, R.L) : ""; } },
 
   // ---------------- アルミニウム押出形材 ----------------
-  { id: "h4100", group: "板厚・肉厚", name: "アルミ押出形材", sub: "JIS H 4100 肉厚",
+  { id: "h4100", group: "板厚・肉厚", name: "アルミ押出形材", sub: "JIS H 4100肉厚",
     def: { grp: "1", grade: "n", d: "120", part: "solid" }, stripKeys: ["grade", "grp"], thick: true,
-    brief: c => `${c.grade === "s" ? "特殊級" : "普通級"}・G${c.grp}・外接円 ${c.d || "?"}${c.part === "hollow" ? "・中空" : ""}`,
-    ui: c => selUI("grp", "合金グループ", [["1", "グループ1（6063・6061・5052 など）"], ["2", "グループ2（5083・2017・7075 など）"]], c.grp) +
+    brief: c => `${c.grade === "s" ? "特殊級" : "普通級"}・G${c.grp}・外接円${c.d || "?"}${c.part === "hollow" ? "・中空" : ""}`,
+    ui: c => selUI("grp", "合金グループ", [["1", "グループ1（6063・6061・5052など）"], ["2", "グループ2（5083・2017・7075など）"]], c.grp) +
       segUI("grade", "等級", [["n", "普通級"], ["s", "特殊級"]], c.grade) + txtUI("d", "外接円の直径 [mm]", c.d) +
       segUI("part", "肉厚の部位", [["solid", "中実部（金属部）"], ["hollow", "中空部を囲む肉厚"]], c.part) +
-      hint("中空部を囲む肉厚は、向かい合う 2 つの肉厚の平均に対する割合で、上下の限りがあります。片方の肉厚が他方の 3 倍以上（偏肉）のときは表を使いません。") +
+      hint("中空部を囲む肉厚は、向かい合う2つの肉厚の平均に対する割合で、上下の限りがあります。片方の肉厚が他方の3倍以上（偏肉）のときは表を使いません。") +
       hint(`グループ1：${H4100.g1}　／　グループ2：${H4100.g2}`),
     solve(p, c) {
       const col = (c.grade === "s" ? 2 : 0) + (c.grp === "2" ? 1 : 0);
@@ -380,27 +380,27 @@ const STDS = [
       const e = baseErr(p); if (e) return Object.assign(e, { desig });
       const d = num(c.d);
       if (!(d > 0)) return ng("外接円の直径を数値で入れてください。", "直径を入れる", { desig });
-      if (d > 800) return ng("外接円の直径が 800 mm を超えるものは表にありません。", "範囲外", { desig });
+      if (d > 800) return ng("外接円の直径が800 mmを超えるものは表にありません。", "範囲外", { desig });
       const band = d <= 250 ? "s250" : "s800";
-      const cols = ["普通級 G1", "普通級 G2", "特殊級 G1", "特殊級 G2"];
+      const cols = ["普通級G1", "普通級G2", "特殊級G1", "特殊級G2"];
       const val = k => {
         if (c.part === "hollow") { const [pc, mn, mx] = H4100.hollow[band][k]; return Math.min(mx, Math.max(mn, p.val * pc / 100)); }
         const r = idx(p.val, H4100.solid[band].tH); return r < 0 ? null : H4100.solid[band].v[r][k];
       };
       const strip = cols.map((lab, k) => ({ label: lab, val: val(k) === null ? "—" : "±" + nat(+val(k).toFixed(3)), set: { grade: k >= 2 ? "s" : "n", grp: k % 2 ? "2" : "1" }, on: k === col }));
       const r = idx(p.val, H4100.solid[band].tH);
-      if (c.part === "hollow") { const [pc, mn, mx] = H4100.hollow[band][col]; return pm(p, +val(col).toFixed(4), { desig, strip, band, col, r: -1, sub2: `平均の肉厚の ±${pc}% を、${mn}〜${mx} mm で制限` }); }
+      if (c.part === "hollow") { const [pc, mn, mx] = H4100.hollow[band][col]; return pm(p, +val(col).toFixed(4), { desig, strip, band, col, r: -1, sub2: `平均の肉厚の ±${pc}%を、${mn}〜${mx} mmで制限` }); }
       if (r < 0) return ng("この肉厚は表の範囲外です。", "範囲外", { desig, strip, band, col });
       return pm(p, val(col), { desig, strip, band, col, r });
     },
     tables(p, c, R) {
       const d = num(c.d); if (!(d > 0) || d > 800) return "";
       const band = d <= 250 ? "s250" : "s800", col = (c.grade === "s" ? 2 : 0) + (c.grp === "2" ? 1 : 0);
-      const cols = ["普通級 G1", "普通級 G2", "特殊級 G1", "特殊級 G2"];
-      if (c.part === "hollow") return grid({ title: "JIS H 4100 中空部を囲む肉厚の許容差（3欄）", corner: "外接円", rowHeads: ["250以下", "250超〜800"], colHeads: cols,
+      const cols = ["普通級G1", "普通級G2", "特殊級G1", "特殊級G2"];
+      if (c.part === "hollow") return grid({ title: "JIS H 4100中空部を囲む肉厚の許容差（3欄）", corner: "外接円", rowHeads: ["250以下", "250超〜800"], colHeads: cols,
         vals: ["s250", "s800"].map(b => H4100.hollow[b].map(([pc, mn, mx]) => `±${pc}%（${mn}〜${mx}）`)), fmt: t => t, hr: band === "s250" ? 0 : 1, hc: col, src: H4100.src });
       const S = H4100.solid[band];
-      return grid({ title: `JIS H 4100 中実部の寸法の許容差（2欄、外接円 ${band === "s250" ? "250 以下" : "250 超 800 以下"}、±mm）`, corner: "寸法 \\ 等級", rowHeads: glHeads(S.tH), colHeads: cols, vals: S.v, hr: R.r ?? -1, hc: col, src: H4100.src });
+      return grid({ title: `JIS H 4100中実部の寸法の許容差（2欄、外接円${band === "s250" ? "250以下" : "250超800以下"}、±mm）`, corner: "寸法 \\ 等級", rowHeads: glHeads(S.tH), colHeads: cols, vals: S.v, hr: R.r ?? -1, hc: col, src: H4100.src });
     } }
 ];
 const RUB_CLS = { M: ["M1", "M2", "M3", "M4"], E: ["E1", "E2", "E3"], L: ["L1", "L2", "L3"] };
@@ -462,10 +462,10 @@ function renderResult(p) {
   if (R.ok) h += `<div class="hero"><span class="big">${dimStr}<small>${R.tolStr}</small></span><span class="lim">${R.lo} 〜 ${R.hi}</span>${R.sub2 ? `<span class="sub2">${R.sub2}</span>` : ""}</div>`;
   else h += `<div class="hero"><span class="big">${dimStr}</span></div><div class="msg warn"><span aria-hidden="true">! </span>${esc(R.note)}</div>`;
   if (R.desig) h += `<div class="desig">${R.desig}</div>`;
-  if (R.ok && R.warn) h += `<div class="msg warn"><span aria-hidden="true">△ </span>${esc(R.warn)} 図面や受入判定に使う前に規格票で確かめてください。</div>`;
+  if (R.ok && R.warn) h += `<div class="msg warn"><span aria-hidden="true">△ </span>${esc(R.warn)}図面や受入判定に使う前に規格票で確かめてください。</div>`;
   if (R.strip && R.strip.length) h += `<h3>等級・区分（押すと切り替わります）</h3><div class="strip">${R.strip.map((x, i) => `<button type="button" data-strip="${i}" aria-pressed="${!!x.on}"><b>${x.label}</b>${x.val}</button>`).join("")}</div>`;
   $("#resTop").innerHTML = h;
-  $("#resBottom").innerHTML = (R.ok ? `<div class="row"><button class="btn" type="button" id="copyBtn">結果をコピー（Excel 用）</button></div>` : "") + (s.extra ? s.extra(p, c, R) : "");
+  $("#resBottom").innerHTML = (R.ok ? `<div class="row"><button class="btn" type="button" id="copyBtn">結果をコピー（Excel用）</button></div>` : "") + (s.extra ? s.extra(p, c, R) : "");
   $("#tables").innerHTML = s.tables(p, c, R);
   last = { s, p, R };
 }
