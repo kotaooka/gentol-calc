@@ -19,7 +19,6 @@ tests/test.js          表の検査テスト
 
 ## 更新して公開するとき
 
-- `index.html`・`js/`・`icons/` を変更したら、**`sw.js` 先頭の `VERSION` を必ず上げてから** push してください。上げないと、すでに使っている人の端末に古いファイルが残り続けます
 - 表の値を直したら、`docs/sources.md` の照合の状況と、`js/tables.js` の各表の `src`（画面の表の下に出る文）も直してください
 - GitHub Pages は main ブランチのルートを公開しています
 
